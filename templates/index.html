@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Xuân CF • Chọn Bài Hát</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (Local instant load) -->
+    <script src="/static/js/tailwind.min.js"></script>
+    <!-- Lucide Icons (Local instant load) -->
+    <script src="/static/js/lucide.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="/static/js/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #090a0f;
+            --card-base: #10121a;
+            --border-base: rgba(255, 255, 255, 0.08);
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+        }
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(at 50% 0%, rgba(245, 158, 11, 0.05) 0px, transparent 60%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.02) 0px, transparent 50%);
+            min-height: 100vh;
+            color: #f4f4f5;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .app-card {
+            background-color: var(--card-base);
+            border: 1px solid var(--border-base);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .music-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+        }
+        .music-bar {
+            width: 2.5px;
+            background: #10b981;
+            border-radius: 9999px;
+            animation: bounce 0.9s infinite alternate;
+        }
+        .music-bar:nth-child(1) { height: 4px; animation-delay: 0.1s; }
+        .music-bar:nth-child(2) { height: 11px; animation-delay: 0.3s; }
+        .music-bar:nth-child(3) { height: 14px; animation-delay: 0.5s; }
+        .music-bar:nth-child(4) { height: 7px; animation-delay: 0.2s; }
+        @keyframes bounce {
+            0% { height: 3px; }
+            100% { height: 14px; }
+        }
+        input[type="text"], input[type="search"] {
+            font-size: 16px !important;
+        }
+        /* HOT Card Stack Carousel Styles */
+        .hot-section {
+            width: 100%;
+            background: linear-gradient(145deg, #131622 0%, #0d0f17 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.06);
+            padding: 16px 0 22px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+        .hot-header {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px 6px 18px;
+            box-sizing: border-box;
+        }
+        .hot-label {
+            font-weight: 800;
+            font-size: 0.95rem;
+            color: #fbbf24;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .hot-carousel {
+            position: relative;
+            width: 100%;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 8px;
+        }
+        .hot-cards {
+            position: relative;
+            width: 210px;
+            height: 240px;
+            margin: 0 auto;
+        }
+        .hot-card {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 190px;
+            height: 225px;
+            border-radius: 22px;
+            box-shadow: 0 10px 28px 0 rgba(0, 0, 0, 0.55);
+            border: 2px solid rgba(255, 255, 255, 0.14);
+            background: #18181b;
+            transform: translate(-50%, -50%);
+            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1), filter 0.8s, opacity 0.8s;
+            opacity: 0;
+            z-index: 1;
+            cursor: pointer;
+            user-select: none;
+            overflow: hidden;
+        }
+        .hot-card-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 20px;
+            display: block;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ============================================================
+           SUPER SAIYAN (MÓN MỚI) AURA, FLAMES & LIGHTNING ANIMATIONS
+           ============================================================ */
+        @keyframes ssjAuraPulse {
+            0%, 100% {
+                border-color: #fef08a;
+                box-shadow:
+                    0 0 12px 2px rgba(254, 240, 138, 0.95),
+                    0 0 26px 6px rgba(250, 204, 21, 0.75),
+                    0 -8px 34px 8px rgba(245, 158, 11, 0.6),
+                    0 0 46px 10px rgba(56, 189, 248, 0.28),
+                    inset 0 0 16px rgba(254, 240, 138, 0.55);
+            }
+            35% {
+                border-color: #ffffff;
+                box-shadow:
+                    0 0 16px 4px rgba(255, 255, 255, 0.98),
+                    0 -6px 32px 10px rgba(250, 204, 21, 0.92),
+                    0 -14px 44px 12px rgba(245, 158, 11, 0.78),
+                    0 0 54px 14px rgba(56, 189, 248, 0.65),
+                    inset 0 0 22px rgba(56, 189, 248, 0.5);
+            }
+            70% {
+                border-color: #facc15;
+                box-shadow:
+                    0 0 14px 3px rgba(254, 240, 138, 0.9),
+                    0 -10px 36px 9px rgba(251, 191, 36, 0.85),
+                    0 -18px 48px 14px rgba(234, 88, 12, 0.65),
+                    0 0 38px 8px rgba(125, 211, 252, 0.45),
+                    inset 0 0 18px rgba(250, 204, 21, 0.65);
+            }
+        }
+        @keyframes ssjFlameRise {
+            0% {
+                transform: translateY(2px) scaleX(0.98) scaleY(0.96);
+                opacity: 0.75;
+                filter: blur(6px) hue-rotate(0deg);
+            }
+            50% {
+                transform: translateY(-9px) scaleX(1.06) scaleY(1.08);
+                opacity: 1;
+                filter: blur(8px) hue-rotate(-8deg);
+            }
+            100% {
+                transform: translateY(-3px) scaleX(1.02) scaleY(1.02);
+                opacity: 0.82;
+                filter: blur(6px) hue-rotate(6deg);
+            }
+        }
+        @keyframes ssjFlameTongues {
+            0%, 100% {
+                background-position: 0% 100%, 50% 100%, 100% 100%;
+                opacity: 0.85;
+            }
+            50% {
+                background-position: 15% 0%, 65% 10%, 85% 0%;
+                opacity: 1;
+            }
+        }
+        @keyframes ssjLightningArc1 {
+            0%, 18%, 24%, 62%, 68%, 100% { opacity: 0; }
+            20%, 22%, 64%, 66% { opacity: 1; transform: scale(1.03); }
+        }
+        @keyframes ssjLightningArc2 {
+            0%, 38%, 44%, 82%, 88%, 100% { opacity: 0; }
+            40%, 42%, 84%, 86% { opacity: 1; transform: scale(0.98) rotate(1deg); }
+        }
+        @keyframes ssjLightningArc3 {
+            0%, 8%, 14%, 50%, 56%, 100% { opacity: 0; }
+            10%, 12%, 52%, 54% { opacity: 1; }
+        }
+        @keyframes ssjBadgePulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 0 10px rgba(250, 204, 21, 0.95), 0 0 18px rgba(56, 189, 248, 0.6);
+            }
+            50% {
+                transform: scale(1.08);
+                box-shadow: 0 0 14px #fff, 0 0 24px rgba(250, 204, 21, 1), 0 0 30px rgba(56, 189, 248, 0.9);
+            }
+        }
+        .ssj-card {
+            border: 2.5px solid #fef08a !important;
+            animation: ssjAuraPulse 1.15s infinite ease-in-out;
+            overflow: visible !important;
+        }
+        .ssj-card::before {
+            content: "";
+            position: absolute;
+            inset: -8px -7px -4px -7px;
+            border-radius: 26px;
+            background:
+                radial-gradient(ellipse at 50% 100%, rgba(254, 240, 138, 0.85) 0%, rgba(250, 204, 21, 0.65) 38%, rgba(245, 158, 11, 0.4) 65%, transparent 82%),
+                conic-gradient(from 0deg, #facc15, #fef08a, #38bdf8, #f59e0b, #fef08a, #38bdf8, #facc15);
+            z-index: 0;
+            pointer-events: none;
+            animation: ssjFlameRise 0.65s infinite alternate ease-in-out;
+        }
+        .ssj-card::after {
+            content: "";
+            position: absolute;
+            inset: -12px -5px 0px -5px;
+            border-radius: 26px;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(254, 240, 138, 0.75) 0%, transparent 45%),
+                radial-gradient(circle at 80% 15%, rgba(56, 189, 248, 0.7) 0%, transparent 40%),
+                radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.85) 0%, transparent 50%);
+            background-size: 120% 120%;
+            filter: blur(5px);
+            z-index: 1;
+            pointer-events: none;
+            animation: ssjFlameTongues 0.8s infinite alternate ease-in-out;
+        }
+        .ssj-menu-card {
+            border: 2px solid #fde047 !important;
+            animation: ssjAuraPulse 1.3s infinite ease-in-out;
+            position: relative;
+            overflow: visible !important;
+        }
+        .ssj-menu-card::before {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border-radius: 19px;
+            background: linear-gradient(180deg, rgba(254, 240, 138, 0.55) 0%, rgba(250, 204, 21, 0.25) 50%, rgba(56, 189, 248, 0.35) 100%);
+            filter: blur(5px);
+            z-index: 0;
+            pointer-events: none;
+            animation: ssjFlameRise 0.75s infinite alternate ease-in-out;
+        }
+        .ssj-sparks-layer {
+            position: absolute;
+            inset: -10px;
+            z-index: 5;
+            pointer-events: none;
+            overflow: visible;
+        }
+        .ssj-spark-svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
+        }
+        .ssj-bolt-1 {
+            animation: ssjLightningArc1 1.4s infinite steps(1);
+            filter: drop-shadow(0 0 5px #38bdf8) drop-shadow(0 0 10px #e0f2fe);
+        }
+        .ssj-bolt-2 {
+            animation: ssjLightningArc2 1.7s infinite steps(1);
+            filter: drop-shadow(0 0 5px #facc15) drop-shadow(0 0 10px #fef08a);
+        }
+        .ssj-bolt-3 {
+            animation: ssjLightningArc3 1.15s infinite steps(1);
+            filter: drop-shadow(0 0 6px #38bdf8) drop-shadow(0 0 12px #ffffff);
+        }
+        .ssj-new-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            z-index: 6;
+            background: linear-gradient(135deg, #fef9c3 0%, #facc15 45%, #f59e0b 100%);
+            color: #090a0f;
+            font-size: 10px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 9999px;
+            border: 1.5px solid #ffffff;
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            animation: ssjBadgePulse 0.9s infinite ease-in-out;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+        }
+        .ssj-caption-pill {
+            border-color: #fde047 !important;
+            background: linear-gradient(90deg, rgba(24, 24, 27, 0.95) 0%, rgba(66, 32, 6, 0.92) 50%, rgba(24, 24, 27, 0.95) 100%) !important;
+            box-shadow: 0 0 14px rgba(250, 204, 21, 0.65), 0 0 24px rgba(56, 189, 248, 0.35), inset 0 0 10px rgba(254, 240, 138, 0.25) !important;
+        }
+        .hot-arrow {
+            background: rgba(15, 17, 26, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 9999px;
+            width: 38px;
+            height: 38px;
+            color: #e4e4e7;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: background 0.22s ease, color 0.22s ease, border-color 0.22s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%) scale(1);
+            backdrop-filter: blur(10px);
+            -webkit-tap-highlight-color: transparent;
+            outline: none;
+            user-select: none;
+        }
+        .hot-arrow.left { left: 12px; }
+        .hot-arrow.right { right: 12px; }
+        .hot-arrow.is-flashing {
+            background: #f59e0b;
+            color: #090a0f;
+            border-color: #fbbf24;
+            box-shadow: 0 0 16px rgba(245, 158, 11, 0.45);
+            transform: translateY(-50%) scale(0.9);
+        }
+        /* Vinyl & Mood Menu Styles */
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .vinyl-spin {
+            animation: spinSlow 7s linear infinite;
+        }
+        .vinyl-disc-bg {
+            background: radial-gradient(circle, #f59e0b 0%, #f59e0b 16%, #18181b 17%, #090a0f 32%, #27272a 33%, #090a0f 35%, #18181b 52%, #27272a 53%, #090a0f 55%, #18181b 100%);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .menu-gacha-highlight {
+            border-color: #fbbf24 !important;
+            box-shadow: 0 0 18px rgba(251, 191, 36, 0.55), inset 0 0 12px rgba(251, 191, 36, 0.2) !important;
+        }
+        /* Smooth Zoom-In / Zoom-Out Popup Animation */
+        .popup-backdrop {
+            opacity: 0;
+            transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .popup-backdrop.popup-open {
+            opacity: 1;
+        }
+        .popup-panel {
+            opacity: 0;
+            transform: scale(0.86) translateY(8px);
+            transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .popup-backdrop.popup-open .popup-panel {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky Header: Clean Minimalist Style -->
+    <header class="sticky top-0 z-30 bg-[#090a0f]/95 backdrop-blur-xl border-b border-white/[0.08] px-4 py-3">
+        <div class="max-w-xl mx-auto flex items-center justify-between">
+            <div>
+                <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-2">
+                    Xuân Cà Phê
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                </h1>
+                <p class="text-[11px] text-amber-200/80 font-medium">Chọn bài hát cùng quán</p>
+            </div>
+
+            <!-- User Profile Pill -->
+            <button onclick="openNameModal()" class="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-800 active:scale-95 border border-white/10 px-3.5 py-1.5 rounded-full transition-all shadow-sm">
+                <span id="headerUserName" class="text-xs font-bold text-zinc-200 max-w-[110px] truncate">Bạn</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-xl mx-auto px-4 pt-3.5 space-y-4">
+
+        <!-- HOT Section: Card Stack Carousel -->
+        <section id="hotSectionWrapper" class="hot-section hidden">
+            <div class="hot-header">
+                <span class="hot-label">
+                    <span>HOT</span>
+                </span>
+                <button type="button" onclick="openCafeMenuModal()" class="px-3.5 py-1.5 rounded-full bg-amber-500 hover:bg-amber-400 text-zinc-950 text-[11px] font-extrabold shadow-sm active:scale-95 transition">
+                    <span>Xem Menu Quán</span>
+                </button>
+            </div>
+            <div class="hot-carousel">
+                <button type="button" class="hot-arrow left" id="hot-prev" aria-label="Món trước">
+                    <i data-lucide="chevron-left" class="w-5 h-5"></i>
+                </button>
+                <div class="hot-cards" id="hot-cards"></div>
+                <button type="button" class="hot-arrow right" id="hot-next" aria-label="Món tiếp">
+                    <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <!-- Active Hot Item Quick Caption -->
+            <div id="hotActiveCaption" onclick="openCurrentHotItemModal()" class="mt-2 px-4 py-1.5 rounded-full bg-zinc-900/90 border border-amber-500/30 flex items-center gap-2 cursor-pointer active:scale-95 transition max-w-[88%]">
+                <span id="hotActiveName" class="text-xs font-bold text-white truncate"></span>
+                <span class="text-amber-400 font-mono text-xs font-extrabold flex-shrink-0" id="hotActivePrice"></span>
+            </div>
+        </section>
+
+        <!-- Banner: Your Song Status (Rule: 1 song per user) -->
+        <div id="userSongSection" class="hidden">
+            <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Search Box: Clean Minimalist Audio Deck Input -->
+        <div class="app-card rounded-2xl p-3.5 sm:p-4">
+            <div class="flex items-center justify-between mb-2.5">
+                <span class="text-xs font-bold text-zinc-300 uppercase tracking-wider text-[11px]">
+                    Tìm & Chọn bài hát
+                </span>
+                <span class="text-[10px] font-mono text-zinc-400 bg-zinc-900/90 px-2 py-0.5 rounded border border-white/5">
+                    1 người / 1 bài
+                </span>
+            </div>
+
+            <!-- Mode 2 Notice Banner -->
+            <div id="playlistOnlyBanner" class="hidden mb-3 p-3 rounded-xl bg-amber-950/30 border border-amber-500/30 text-xs text-amber-200">
+                <span class="font-bold">Quán đang phát Playlist riêng:</span>
+                <span id="bannerPlaylistName" class="text-white font-semibold"></span>. Tạm thời không nhận thêm bài chọn từ khách.
+            </div>
+
+            <form id="searchForm" class="relative" onsubmit="handleSearch(event)">
+                <div class="relative flex items-center">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Nhập tên bài hát hoặc ca sĩ..." 
+                        autocomplete="off"
+                        class="w-full bg-[#0c0e14] border border-white/10 rounded-xl pl-3.5 pr-10 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all shadow-inner text-sm"
+                    />
+                    <div class="absolute right-2.5 flex items-center gap-1.5">
+                        <div id="searchSpinner" class="hidden text-amber-400 animate-spin">
+                            <i data-lucide="loader-2" class="w-4 h-4"></i>
+                        </div>
+                        <button type="button" onclick="clearSearch()" id="clearSearchBtn" class="hidden text-zinc-400 hover:text-white p-1.5 rounded-md transition" title="Xóa">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Search Results -->
+        <div id="searchResultsSection" class="hidden space-y-2">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-mono">Kết quả tìm kiếm</h3>
+                <span id="resultsCount" class="text-xs text-zinc-400 font-mono"></span>
+            </div>
+            <div id="searchResultsList" class="space-y-2">
+                <!-- Dynamically rendered -->
+            </div>
+        </div>
+
+        <!-- Now Playing & Upcoming Queue -->
+        <div class="space-y-2.5">
+            <div class="flex items-center justify-between px-1">
+                <h3 class="text-[11px] font-bold text-zinc-400 uppercase tracking-wider font-mono">
+                    Hàng đợi phát nhạc
+                </h3>
+                <span id="queueBadge" class="text-[11px] font-mono bg-zinc-900 text-zinc-300 border border-white/10 px-2.5 py-0.5 rounded-full font-semibold">0 bài chờ</span>
+            </div>
+
+            <!-- Current Playing Banner -->
+            <div id="currentPlayingBox" class="app-card rounded-2xl p-3.5 border-emerald-500/30 bg-emerald-950/15 shadow-sm hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[10px] uppercase font-mono tracking-wider text-emerald-400 font-bold flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        Đang phát trên loa
+                    </span>
+                    <div class="music-bars">
+                        <div class="music-bar"></div>
+                        <div class="music-bar"></div>
+                        <div class="music-bar"></div>
+                        <div class="music-bar"></div>
+                    </div>
+                </div>
+                <div class="flex gap-3 items-center">
+                    <img id="currentThumb" src="" alt="Thumbnail" class="w-16 h-12 object-cover rounded-xl shadow border border-white/10 flex-shrink-0" />
+                    <div class="min-w-0 flex-1">
+                        <h4 id="currentTitle" class="text-xs sm:text-sm font-bold text-white truncate tracking-tight"></h4>
+                        <div class="flex items-center gap-2 text-xs text-zinc-400 mt-0.5">
+                            <span id="currentChannel" class="truncate font-medium"></span>
+                            <span>•</span>
+                            <span class="text-emerald-300 font-semibold">
+                                <span id="currentUser"></span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Waiting List -->
+            <div id="waitingList" class="space-y-2">
+                <div class="text-center py-8 app-card rounded-2xl border-dashed border-zinc-800">
+                    <p class="text-xs font-semibold text-zinc-300">Chưa có bài hát nào trong hàng đợi</p>
+                    <p class="text-[11px] text-zinc-500 mt-1">Tìm và chọn bài hát yêu thích của bạn ngay ở trên!</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Sticky Mobile Bottom Mini-Bar -->
+    <div id="mobileBottomBar" class="fixed bottom-0 left-0 right-0 z-40 p-2.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] bg-[#090a0f]/95 backdrop-blur-xl border-t border-white/10 shadow-2xl transition-all duration-300 hidden">
+        <!-- Rendered dynamically -->
+    </div>
+
+    <!-- Name Input Modal -->
+    <div id="nameModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md hidden">
+        <div class="app-card rounded-2xl max-w-sm w-full p-5 border border-white/10 shadow-2xl relative">
+            <button type="button" onclick="closeNameModal()" class="absolute top-4 right-4 text-zinc-400 hover:text-white p-1 rounded-lg transition" title="Đóng">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <h3 class="text-base font-extrabold text-center text-white mt-1">Bạn tên là gì?</h3>
+            <p class="text-xs text-zinc-400 text-center mt-1 mb-4">Nhập tên hoặc biệt danh để mọi người biết ai đang chọn bài nhé!</p>
+
+            <form onsubmit="saveName(event)">
+                <input 
+                    type="text" 
+                    id="nameInput" 
+                    maxlength="30"
+                    placeholder="Ví dụ: Hoàng Long, Bé Vy, Nam..." 
+                    class="w-full bg-[#0c0e14] border border-white/10 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 mb-3.5 shadow-inner text-sm"
+                    required
+                />
+                <button 
+                    type="submit" 
+                    class="w-full bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-extrabold py-3 rounded-xl text-xs uppercase tracking-wider shadow-lg transition">
+                    Xác nhận & Bắt đầu chọn bài
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification (Floats above mobile bottom bar) -->
+    <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-4 w-auto max-w-[90vw]">
+        <div id="toastContent" class="bg-zinc-950/95 border border-white/10 text-white text-xs font-semibold px-4 py-2.5 rounded-full shadow-2xl flex items-center justify-center backdrop-blur-md">
+            <span id="toastMsg" class="truncate"></span>
+        </div>
+    </div>
+
+    <!-- HOT Item Detail Popup Modal (Bảng giá, Tên món & Mô tả) -->
+    <div id="hotItemModal" onclick="if(event.target===this) closeHotItemModal()" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md popup-backdrop hidden">
+        <div class="popup-panel app-card rounded-3xl max-w-sm w-full overflow-hidden border border-amber-500/30 shadow-2xl relative">
+            <!-- Close Button -->
+            <button type="button" onclick="closeHotItemModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center backdrop-blur-md transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+
+            <!-- Item Photo -->
+            <div id="hotModalPhotoWrap" class="relative w-full h-64 bg-zinc-900">
+                <img id="hotModalImg" src="" alt="Món HOT" class="w-full h-full object-cover" />
+                <div id="hotModalSsjOverlay"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#10121a] via-transparent to-transparent"></div>
+                <span id="hotModalBadge" class="absolute top-3 left-3 bg-amber-500 text-zinc-950 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
+                    HOT
+                </span>
+            </div>
+
+            <!-- Item Info: Tên món, Giá & Mô tả -->
+            <div class="p-5 pt-2 space-y-3">
+                <div id="hotModalGachaBanner" class="hidden bg-amber-500/15 border border-amber-400/40 rounded-xl px-3 py-1.5 text-[11px] text-amber-300 font-bold">
+                    <span>Gợi ý món hôm nay cho bạn</span>
+                </div>
+
+                <div class="flex items-start justify-between gap-3">
+                    <h3 id="hotModalTitle" class="text-lg font-extrabold text-white leading-snug"></h3>
+                    <div id="hotModalPrice" class="bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-extrabold text-sm px-3 py-1 rounded-xl flex-shrink-0 shadow-inner"></div>
+                </div>
+
+                <div class="bg-zinc-900/70 border border-white/5 rounded-2xl p-3.5">
+                    <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1 font-semibold">Mô tả</div>
+                    <p id="hotModalDesc" class="text-xs text-zinc-200 leading-relaxed whitespace-pre-line"></p>
+                </div>
+
+                <div class="flex items-center justify-between gap-2 pt-1">
+                    <button type="button" onclick="stepHotModal(-1)" class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-300 border border-white/10 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition">
+                        <span>Món trước</span>
+                    </button>
+                    <button type="button" onclick="closeHotItemModal()" class="flex-1 bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-wider shadow transition">
+                        Đóng
+                    </button>
+                    <button type="button" onclick="stepHotModal(1)" class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-300 border border-white/10 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition">
+                        <span>Món tiếp</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAFE MENU MODAL: Centered Fixed-Size Popup with Zoom Animation -->
+    <div id="cafeMenuModal" onclick="if(event.target===this) closeCafeMenuModal()" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md popup-backdrop hidden">
+        <div class="popup-panel w-full max-w-md h-[76vh] min-h-[460px] max-h-[620px] bg-[#0c0e16] border border-amber-500/30 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <!-- Header -->
+            <div class="relative px-4 pt-4 pb-3 border-b border-white/10 bg-gradient-to-b from-amber-500/10 to-transparent flex-shrink-0">
+                <div class="flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 class="text-base sm:text-lg font-extrabold text-white tracking-wide truncate">XUÂN CÀ PHÊ</h2>
+                    </div>
+
+                    <button type="button" onclick="closeCafeMenuModal()" class="w-8 h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 active:scale-90 text-zinc-300 border border-white/10 flex items-center justify-center transition flex-shrink-0">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Interactive Toolbar: Search + "Chọn giúp tôi!" Button -->
+                <div class="mt-3 flex items-center gap-2">
+                    <div class="relative flex-1">
+                        <input type="text" id="cafeMenuSearchInput" oninput="renderCafeMenu()" placeholder="Tìm món yêu thích..." class="w-full bg-zinc-900/90 border border-white/10 rounded-xl px-3.5 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <button type="button" id="btnMenuGacha" onclick="spinRandomMenuDrink()" class="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500 text-amber-300 hover:text-zinc-950 border border-amber-400/40 text-xs font-extrabold flex items-center justify-center flex-shrink-0 active:scale-95 transition">
+                        <span>Chọn giúp tôi</span>
+                    </button>
+                </div>
+
+                <!-- Category Filter Pills (Rendered dynamically from Admin categories) -->
+                <div id="cafeMenuCategoryBar" class="mt-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                </div>
+            </div>
+
+            <!-- Menu Body -->
+            <div id="cafeMenuBody" class="p-4 overflow-y-auto flex-1 space-y-3">
+                <!-- Dynamically rendered -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function closeNameModal() {
+            if (!userName) userName = 'Bạn';
+            updateUserDisplay();
+            document.getElementById('nameModal').classList.add('hidden');
+        }
+
+        // User State stored in LocalStorage
+        let userId = localStorage.getItem('xuancf_user_id');
+        if (!userId) {
+            userId = 'u_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+            localStorage.setItem('xuancf_user_id', userId);
+        }
+
+        let userName = localStorage.getItem('xuancf_user_name') || '';
+        let myActiveSong = null;
+        let activeQueueData = { current: null, waiting: [] };
+        let currentPlaybackMode = 'auto_priority';
+
+        // Socket.IO
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Connected to server via WebSocket');
+            socket.emit('request_queue');
+        });
+
+        socket.on('queue_updated', (data) => {
+            activeQueueData = data;
+            if (data.playback_mode) updatePlaybackModeUI(data.playback_mode, data.active_playlist);
+            renderQueue(data);
+            checkMySong(data);
+            renderMobileBottomBar();
+        });
+
+        socket.on('playback_mode_changed', (data) => {
+            if (data && data.playback_mode) {
+                updatePlaybackModeUI(data.playback_mode, data.active_playlist);
+            }
+        });
+
+        socket.on('hot_items_updated', (data) => {
+            if (data && Array.isArray(data.items)) {
+                applyMenuAndHotItems(data.items, data.categories);
+            }
+        });
+
+        // ============================================================
+        // HOT CARD STACK CAROUSEL, DETAIL MODAL & VINYL MENU
+        // ============================================================
+        let allMenuItems = [];
+        let hotItems = [];
+        let menuCategories = ['Cà Phê', 'Rau Má – Sữa Đậu', 'Trà', 'Nước Ép', 'Đá Xay', 'Trà Sữa', 'Soda', 'Sinh Tố', 'Sữa Chua'];
+        let hotCurrent = 0;
+        let hotAnimating = false;
+        let hotAutoPlay = null;
+        let activeHotModalIdx = 0;
+        let currentMenuCategory = 'all';
+        let currentMenuViewMode = 'vinyl'; // 'vinyl' | 'tracklist'
+        let gachaSpinning = false;
+        const stackAngles = [8, -10, -24, 20];
+        const stackFilters = [
+            'none',
+            'grayscale(0.45) brightness(0.8)',
+            'grayscale(0.75) brightness(0.55)',
+            'grayscale(1) brightness(0.35)'
+        ];
+
+        function detectItemCategory(item) {
+            const raw = (item.category || '').trim();
+            if (raw && !['coffee', 'tea', 'milk', 'snack'].includes(raw)) {
+                return raw;
+            }
+            if (raw === 'tea') return 'Trà';
+            if (raw === 'milk') return 'Sữa & Matcha';
+            if (raw === 'snack') return 'Bánh & Ăn Vặt';
+            const n = (item.name || '').toLowerCase();
+            if (n.includes('trà') || n.includes('đào') || n.includes('vải') || n.includes('chanh') || n.includes('cam')) return 'Trà';
+            if (n.includes('matcha') || n.includes('latte') || n.includes('sữa') || n.includes('cacao') || n.includes('chocolate')) return 'Sữa & Matcha';
+            if (n.includes('bánh') || n.includes('croissant') || n.includes('hạt') || n.includes('khô') || n.includes('snack')) return 'Bánh & Ăn Vặt';
+            return 'Cà Phê';
+        }
+
+        function getCategoryMeta(cat) {
+            const c = (cat || 'Cà Phê').trim();
+            const lower = c.toLowerCase();
+            if (lower.includes('rau má') || lower.includes('sinh tố')) return { label: c, badgeClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
+            if (lower.includes('soda') || lower.includes('đá xay')) return { label: c, badgeClass: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
+            if (lower.includes('sữa chua') || lower.includes('trà sữa')) return { label: c, badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40' };
+            if (lower.includes('nước ép') || lower.includes('trà')) return { label: c, badgeClass: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
+            return { label: c, badgeClass: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
+        }
+
+        function renderMenuCategoryBar() {
+            const bar = document.getElementById('cafeMenuCategoryBar');
+            if (!bar) return;
+            const mergedCats = [...menuCategories];
+            allMenuItems.forEach(it => {
+                if (it.resolvedCategory && !mergedCats.includes(it.resolvedCategory)) {
+                    mergedCats.push(it.resolvedCategory);
+                }
+            });
+            if (currentMenuCategory !== 'all' && currentMenuCategory !== 'hot' && !mergedCats.includes(currentMenuCategory)) {
+                currentMenuCategory = 'all';
+            }
+            const pills = [
+                { key: 'all', label: 'Tất cả' },
+                { key: 'hot', label: 'HOT' },
+                ...mergedCats.map(c => ({ key: c, label: c }))
+            ];
+            bar.innerHTML = pills.map(p => {
+                const active = currentMenuCategory === p.key;
+                const cls = active
+                    ? 'menu-cat-pill px-3 py-1.5 rounded-full text-[11px] font-extrabold whitespace-nowrap transition bg-amber-500 text-zinc-950 shadow-sm'
+                    : 'menu-cat-pill px-3 py-1.5 rounded-full text-[11px] font-bold whitespace-nowrap transition bg-zinc-900 text-zinc-300 border border-white/10';
+                return `<button type="button" data-cat="${escapeHtml(p.key)}" onclick="setMenuCategory(this.getAttribute('data-cat'))" class="${cls}">${escapeHtml(p.label)}</button>`;
+            }).join('');
+        }
+
+        function applyMenuAndHotItems(items, categories = null) {
+            if (Array.isArray(categories) && categories.length > 0) {
+                menuCategories = categories;
+            }
+            allMenuItems = (items || []).map(it => {
+                const isNew = Number(it.is_new || 0) !== 0 ? 1 : 0;
+                const isHot = isNew ? 1 : (it.is_hot === undefined || it.is_hot === null ? 1 : Number(it.is_hot));
+                return {
+                    ...it,
+                    resolvedCategory: detectItemCategory(it),
+                    isNewFlag: isNew,
+                    isHotFlag: isHot
+                };
+            }).sort((a, b) => {
+                const aNew = a.isNewFlag ? 1 : 0;
+                const bNew = b.isNewFlag ? 1 : 0;
+                if (bNew !== aNew) return bNew - aNew; // Món mới luôn lên đầu
+                return (a.order_num || 0) - (b.order_num || 0);
+            });
+            const filteredHot = allMenuItems.filter(it => it.isHotFlag !== 0);
+            hotItems = filteredHot.length > 0 ? filteredHot : allMenuItems;
+            hotCurrent = 0;
+            renderHotCarousel();
+            renderMenuCategoryBar();
+            if (!document.getElementById('cafeMenuModal')?.classList.contains('hidden')) {
+                renderCafeMenu();
+            }
+        }
+
+        async function loadHotItems() {
+            try {
+                const res = await fetch('/api/hot_items');
+                const data = await res.json();
+                if (data.success && Array.isArray(data.items)) {
+                    applyMenuAndHotItems(data.items, data.categories);
+                    startHotAutoPlay();
+                }
+            } catch (err) {
+                console.error('Error loading hot items:', err);
+            }
+        }
+
+        function startHotAutoPlay() {
+            if (hotAutoPlay) clearInterval(hotAutoPlay);
+            hotAutoPlay = setInterval(() => {
+                const detailOpen = !document.getElementById('hotItemModal')?.classList.contains('hidden');
+                const menuOpen = !document.getElementById('cafeMenuModal')?.classList.contains('hidden');
+                if (hotItems.length > 1 && !hotAnimating && !detailOpen && !menuOpen) {
+                    animateHot(1);
+                }
+            }, 3000);
+        }
+
+        function getSuperSaiyanOverlayHTML() {
+            return `
+                <div class="ssj-sparks-layer">
+                    <svg class="ssj-spark-svg" viewBox="0 0 210 245" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path class="ssj-bolt-1" d="M18 12 L6 38 L22 44 L8 78 L26 84 L12 120" stroke="#e0f2fe" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path class="ssj-bolt-1" d="M186 30 L202 58 L184 68 L200 104 L182 132" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path class="ssj-bolt-2" d="M35 6 L68 -4 L58 10 L98 0 L88 12 L132 2" stroke="#fef08a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path class="ssj-bolt-2" d="M14 165 L2 195 L20 202 L10 232 L46 240" stroke="#facc15" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path class="ssj-bolt-3" d="M196 148 L208 178 L190 186 L204 218 L168 238" stroke="#e0f2fe" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path class="ssj-bolt-3" d="M72 240 L108 248 L100 235 L142 244" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <span class="ssj-new-badge">⚡ MỚI</span>
+            `;
+        }
+
+        function createHotCardElement(item, clickIdx) {
+            const card = document.createElement('div');
+            const isNew = Boolean(item && item.isNewFlag);
+            card.className = isNew ? 'hot-card ssj-card' : 'hot-card';
+            card.innerHTML = `
+                <img src="${item.image_url}" alt="${escapeHtml(item.name || 'Hot item')}" class="hot-card-img" />
+                ${isNew ? getSuperSaiyanOverlayHTML() : ''}
+            `;
+            card.onclick = () => openHotItemModal(clickIdx);
+            return card;
+        }
+
+        function updateHotCaption() {
+            const captionEl = document.getElementById('hotActiveCaption');
+            const nameEl = document.getElementById('hotActiveName');
+            const priceEl = document.getElementById('hotActivePrice');
+            if (!hotItems.length || !nameEl || !priceEl) return;
+            const item = hotItems[hotCurrent % hotItems.length];
+            const isNew = Boolean(item && item.isNewFlag);
+            if (captionEl) {
+                captionEl.classList.toggle('ssj-caption-pill', isNew);
+            }
+            if (isNew) {
+                nameEl.innerHTML = `<span class="inline-block bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-500 text-zinc-950 text-[10px] font-black px-1.5 py-0.5 rounded-full mr-1.5 shadow-[0_0_8px_rgba(250,204,21,0.9)]">⚡ MỚI</span><span class="text-yellow-200 drop-shadow-[0_0_6px_rgba(250,204,21,0.6)]">${escapeHtml(item.name || '')}</span>`;
+            } else {
+                nameEl.textContent = item.name || '';
+            }
+            priceEl.textContent = item.price || '';
+        }
+
+        function renderHotCarousel() {
+            const section = document.getElementById('hotSectionWrapper');
+            const cards = document.getElementById('hot-cards');
+            if (!section || !cards) return;
+
+            const N = hotItems.length;
+            if (N === 0) {
+                section.classList.add('hidden');
+                cards.innerHTML = '';
+                return;
+            }
+
+            section.classList.remove('hidden');
+            cards.innerHTML = '';
+            const count = Math.min(4, N);
+            for (let i = 0; i < count; i++) {
+                const idx = (hotCurrent + i) % N;
+                const item = hotItems[idx];
+                if (!item) continue;
+                const card = createHotCardElement(item, idx);
+                card.style.opacity = i < 3 ? 1 : 0;
+                card.style.zIndex = 4 - i;
+                card.style.transform = `translate(-50%, -50%) rotate(${stackAngles[i]}deg)`;
+                card.style.filter = stackFilters[i];
+                cards.appendChild(card);
+            }
+            updateHotCaption();
+        }
+
+        function animateHot(direction = 1) {
+            if (hotAnimating || hotItems.length <= 1) return;
+            hotAnimating = true;
+            const cards = document.querySelectorAll('.hot-card');
+            const N = hotItems.length;
+            const targetIdx = direction === 1 ? (hotCurrent + 1) % N : (hotCurrent - 1 + N) % N;
+
+            // Update active index and text caption immediately in sync with the card jump
+            hotCurrent = targetIdx;
+            updateHotCaption();
+
+            if (direction === 1) {
+                for (let i = 0; i < cards.length; i++) {
+                    const next = (i - direction + 4) % 4;
+                    cards[i].style.transition = 'transform 0.8s cubic-bezier(0.4,0,0.2,1), filter 0.8s, opacity 0.8s';
+                    if (i === 0) {
+                        cards[i].style.zIndex = 10;
+                        cards[i].style.transform = 'translate(-50%, -50%) translate(60px,80px) scale(0.7) rotate(90deg)';
+                        cards[i].style.opacity = 0;
+                        cards[i].style.pointerEvents = 'none';
+                    } else {
+                        cards[i].style.transform = `translate(-50%, -50%) rotate(${stackAngles[next]}deg)`;
+                        cards[i].style.opacity = next < 3 ? 1 : 0;
+                        cards[i].style.zIndex = 4 - next;
+                    }
+                    cards[i].style.filter = stackFilters[next];
+                }
+                setTimeout(() => {
+                    renderHotCarousel();
+                    hotAnimating = false;
+                }, 800);
+            } else {
+                const cardsContainer = document.getElementById('hot-cards');
+                if (!cardsContainer) {
+                    hotAnimating = false;
+                    return;
+                }
+                const item = hotItems[targetIdx];
+                if (!item) {
+                    hotAnimating = false;
+                    return;
+                }
+                const card = createHotCardElement(item, targetIdx);
+                card.style.opacity = 0;
+                card.style.zIndex = 10;
+                card.style.transform = 'translate(-50%, -50%) translate(60px,80px) scale(0.7) rotate(90deg)';
+                card.style.filter = stackFilters[3];
+                cardsContainer.appendChild(card);
+
+                for (let i = 0; i < cards.length; i++) {
+                    cards[i].style.transition = 'transform 0.8s cubic-bezier(0.4,0,0.2,1), filter 0.8s, opacity 0.8s';
+                    const next = (i + 1) % 4;
+                    cards[i].style.transform = `translate(-50%, -50%) rotate(${stackAngles[next]}deg)`;
+                    cards[i].style.opacity = next < 3 ? 1 : 0;
+                    cards[i].style.zIndex = 4 - next;
+                    cards[i].style.filter = stackFilters[next];
+                }
+                setTimeout(() => {
+                    card.style.transition = 'transform 0.8s cubic-bezier(0.4,0,0.2,1), filter 0.8s, opacity 0.8s';
+                    card.style.opacity = 1;
+                    card.style.transform = `translate(-50%, -50%) rotate(${stackAngles[0]}deg)`;
+                    card.style.filter = stackFilters[0];
+                }, 10);
+                setTimeout(() => {
+                    renderHotCarousel();
+                    hotAnimating = false;
+                }, 820);
+            }
+        }
+
+        function openHotItemModal(idx, isGachaPick = false) {
+            const list = allMenuItems.length ? allMenuItems : hotItems;
+            if (!list.length) return;
+            // Map from hotItems index if called from carousel
+            let item = hotItems[idx];
+            if (item) {
+                const foundIdx = list.findIndex(x => x.id === item.id);
+                activeHotModalIdx = foundIdx >= 0 ? foundIdx : 0;
+            } else {
+                activeHotModalIdx = (idx + list.length) % list.length;
+                item = list[activeHotModalIdx];
+            }
+            renderHotModalContent(item, isGachaPick);
+        }
+
+        function openMenuItemById(itemId, isGachaPick = false) {
+            const list = allMenuItems.length ? allMenuItems : hotItems;
+            const idx = list.findIndex(x => Number(x.id) === Number(itemId));
+            if (idx === -1) return;
+            activeHotModalIdx = idx;
+            renderHotModalContent(list[idx], isGachaPick);
+        }
+
+        let hotModalCloseTimer = null;
+        let cafeMenuCloseTimer = null;
+
+        function renderHotModalContent(item, isGachaPick = false) {
+            if (!item) return;
+            const gachaBanner = document.getElementById('hotModalGachaBanner');
+            if (gachaBanner) {
+                if (isGachaPick) gachaBanner.classList.remove('hidden');
+                else gachaBanner.classList.add('hidden');
+            }
+            const catMeta = getCategoryMeta(item.resolvedCategory || detectItemCategory(item));
+            const badgeEl = document.getElementById('hotModalBadge');
+            const isNew = Boolean(item.isNewFlag);
+            if (badgeEl) {
+                if (isNew) {
+                    badgeEl.className = 'absolute top-3 left-3 bg-gradient-to-r from-yellow-200 via-yellow-400 to-amber-500 text-zinc-950 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full shadow-[0_0_15px_rgba(250,204,21,0.95)] border border-white flex items-center gap-1';
+                    badgeEl.innerHTML = `<span>⚡ MỚI • HOT • ${catMeta.label}</span>`;
+                } else if (item.isHotFlag !== 0) {
+                    badgeEl.className = 'absolute top-3 left-3 bg-amber-500 text-zinc-950 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1';
+                    badgeEl.innerHTML = `<span>HOT • ${catMeta.label}</span>`;
+                } else {
+                    badgeEl.className = 'absolute top-3 left-3 bg-zinc-800/90 text-zinc-200 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg border border-white/15 flex items-center gap-1';
+                    badgeEl.innerHTML = `<span>${catMeta.label}</span>`;
+                }
+            }
+            document.getElementById('hotModalImg').src = item.image_url;
+            const overlayEl = document.getElementById('hotModalSsjOverlay');
+            if (overlayEl) {
+                overlayEl.innerHTML = isNew ? getSuperSaiyanOverlayHTML() : '';
+            }
+            const titleEl = document.getElementById('hotModalTitle');
+            if (titleEl) {
+                titleEl.textContent = item.name || 'Món Ngon';
+                if (isNew) {
+                    titleEl.className = 'text-lg font-black text-yellow-200 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)] leading-snug';
+                } else {
+                    titleEl.className = 'text-lg font-extrabold text-white leading-snug';
+                }
+            }
+            document.getElementById('hotModalPrice').textContent = item.price || '';
+            document.getElementById('hotModalDesc').textContent = item.description || 'Món ngon đặc trưng tại Xuân Cà Phê.';
+            const modal = document.getElementById('hotItemModal');
+            const panel = modal?.querySelector('.popup-panel');
+            if (panel) {
+                panel.classList.toggle('ssj-modal-aura', isNew);
+                panel.classList.toggle('ssj-menu-card', isNew);
+            }
+            if (hotModalCloseTimer) {
+                clearTimeout(hotModalCloseTimer);
+                hotModalCloseTimer = null;
+            }
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.add('popup-open');
+            });
+            lucide.createIcons();
+        }
+
+        function openCurrentHotItemModal() {
+            openHotItemModal(hotCurrent, false);
+        }
+
+        function stepHotModal(delta) {
+            const list = allMenuItems.length ? allMenuItems : hotItems;
+            if (!list.length) return;
+            activeHotModalIdx = (activeHotModalIdx + delta + list.length) % list.length;
+            renderHotModalContent(list[activeHotModalIdx], false);
+        }
+
+        function closeHotItemModal() {
+            const modal = document.getElementById('hotItemModal');
+            if (!modal) return;
+            modal.classList.remove('popup-open');
+            if (hotModalCloseTimer) clearTimeout(hotModalCloseTimer);
+            hotModalCloseTimer = setTimeout(() => {
+                modal.classList.add('hidden');
+                hotModalCloseTimer = null;
+            }, 230);
+        }
+
+        // ============================================================
+        // CAFE MENU MODAL: CENTERED FIXED-SIZE POPUP + ZOOM ANIMATION
+        // ============================================================
+        function openCafeMenuModal() {
+            const modal = document.getElementById('cafeMenuModal');
+            if (!modal) return;
+            if (cafeMenuCloseTimer) {
+                clearTimeout(cafeMenuCloseTimer);
+                cafeMenuCloseTimer = null;
+            }
+            renderMenuCategoryBar();
+            renderCafeMenu();
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.add('popup-open');
+            });
+            lucide.createIcons();
+        }
+
+        function closeCafeMenuModal() {
+            const modal = document.getElementById('cafeMenuModal');
+            if (!modal) return;
+            modal.classList.remove('popup-open');
+            if (cafeMenuCloseTimer) clearTimeout(cafeMenuCloseTimer);
+            cafeMenuCloseTimer = setTimeout(() => {
+                modal.classList.add('hidden');
+                cafeMenuCloseTimer = null;
+            }, 230);
+        }
+
+        function setMenuCategory(cat) {
+            currentMenuCategory = cat;
+            renderMenuCategoryBar();
+            renderCafeMenu();
+        }
+
+        function getFilteredMenuItems() {
+            const q = (document.getElementById('cafeMenuSearchInput')?.value || '').trim().toLowerCase();
+            const list = allMenuItems.filter(item => {
+                if (currentMenuCategory === 'hot' && item.isHotFlag === 0) return false;
+                if (currentMenuCategory !== 'all' && currentMenuCategory !== 'hot' && item.resolvedCategory !== currentMenuCategory) return false;
+                if (q) {
+                    const hay = `${item.name || ''} ${item.description || ''} ${item.price || ''}`.toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+            // Món mới (isNewFlag === 1) luôn đứng đầu ở "Tất cả" & đứng đầu ở mục của nó
+            return list.sort((a, b) => {
+                const aNew = a.isNewFlag ? 1 : 0;
+                const bNew = b.isNewFlag ? 1 : 0;
+                if (bNew !== aNew) return bNew - aNew;
+                return (a.order_num || 0) - (b.order_num || 0);
+            });
+        }
+
+        function renderCafeMenu() {
+            const body = document.getElementById('cafeMenuBody');
+            if (!body) return;
+
+            const filtered = getFilteredMenuItems();
+
+            if (filtered.length === 0) {
+                body.innerHTML = `
+                    <div class="h-full flex flex-col items-center justify-center text-center py-12 px-4">
+                        <p class="text-xs font-bold text-zinc-300">Chưa có món nào trong mục này</p>
+                        <p class="text-[11px] text-zinc-500 mt-1">Hãy thử chọn mục "Tất cả" hoặc từ khóa khác nhé!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            body.innerHTML = `
+                <div class="grid grid-cols-2 gap-3">
+                    ${filtered.map((item) => {
+                        const catMeta = getCategoryMeta(item.resolvedCategory);
+                        const isNew = Boolean(item.isNewFlag);
+                        return `
+                            <div id="menuCard_${item.id}" onclick="openMenuItemById(${item.id})" class="group relative bg-zinc-900/90 hover:bg-zinc-900 border ${isNew ? 'ssj-menu-card' : 'border-white/10 hover:border-amber-500/40'} rounded-2xl p-2.5 cursor-pointer transition-all duration-200 active:scale-95 flex flex-col justify-between shadow-lg">
+                                ${isNew ? getSuperSaiyanOverlayHTML() : ''}
+                                <div class="relative z-[2]">
+                                    <div class="relative w-full h-36 sm:h-40 mb-2.5 rounded-xl overflow-hidden border ${isNew ? 'border-yellow-300/70' : 'border-white/10'} bg-zinc-950">
+                                        <img src="${item.image_url}" alt="${escapeHtml(item.name)}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
+                                        ${!isNew && item.isHotFlag !== 0 ? `
+                                            <span class="absolute top-1.5 right-1.5 bg-amber-500 text-zinc-950 text-[9px] font-extrabold px-2 py-0.5 rounded-full shadow">
+                                                HOT
+                                            </span>
+                                        ` : ''}
+                                        <span class="absolute bottom-1.5 left-1.5 text-[9px] font-bold px-1.5 py-0.5 rounded border ${catMeta.badgeClass} backdrop-blur-md">
+                                            ${escapeHtml(catMeta.label)}
+                                        </span>
+                                    </div>
+                                    <h4 class="font-extrabold text-xs sm:text-sm ${isNew ? 'text-yellow-200 drop-shadow-[0_0_6px_rgba(250,204,21,0.65)]' : 'text-white'} line-clamp-1">${escapeHtml(item.name)}</h4>
+                                    <p class="text-[11px] text-zinc-400 line-clamp-2 mt-0.5 leading-snug min-h-[28px]">${escapeHtml(item.description || 'Hương vị đặc trưng tại Xuân Cà Phê.')}</p>
+                                </div>
+                                <div class="relative z-[2] mt-2.5 pt-2 border-t border-white/[0.06] flex items-center justify-between">
+                                    <span class="font-mono font-extrabold text-xs sm:text-sm text-amber-400">${escapeHtml(item.price)}</span>
+                                    <span class="text-[10px] font-bold ${isNew ? 'text-yellow-300' : 'text-zinc-400 group-hover:text-amber-300'}">Chi tiết</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function spinRandomMenuDrink() {
+            if (gachaSpinning) return;
+            let candidates = getFilteredMenuItems();
+            if (candidates.length === 0) {
+                setMenuCategory('all');
+                candidates = getFilteredMenuItems();
+            }
+            if (candidates.length === 0) return;
+
+            const winnerIdx = Math.floor(Math.random() * candidates.length);
+            openMenuItemById(candidates[winnerIdx].id, true);
+        }
+
+        function updatePlaybackModeUI(mode, activePl) {
+            currentPlaybackMode = mode;
+            const banner = document.getElementById('playlistOnlyBanner');
+            const searchInput = document.getElementById('searchInput');
+            if (mode === 'playlist_only') {
+                banner.classList.remove('hidden');
+                const plName = activePl ? activePl.name : 'Quán';
+                document.getElementById('bannerPlaylistName').textContent = plName;
+                if (searchInput) searchInput.placeholder = "Quán đang phát Playlist riêng...";
+            } else {
+                banner.classList.add('hidden');
+                if (searchInput) searchInput.placeholder = "Nhập tên bài hát hoặc ca sĩ...";
+            }
+            lucide.createIcons();
+            updateSearchButtonsState();
+        }
+
+        // Initialize UI
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            updateUserDisplay();
+            if (!userName) {
+                openNameModal();
+            }
+            fetchQueue();
+            loadHotItems();
+
+            const hotNextBtn = document.getElementById('hot-next');
+            const hotPrevBtn = document.getElementById('hot-prev');
+            function flashHotArrow(btn) {
+                if (!btn) return;
+                btn.classList.add('is-flashing');
+                clearTimeout(btn._flashTimer);
+                btn._flashTimer = setTimeout(() => {
+                    btn.classList.remove('is-flashing');
+                    btn.blur();
+                }, 180);
+            }
+            if (hotNextBtn) {
+                hotNextBtn.onclick = () => {
+                    flashHotArrow(hotNextBtn);
+                    if (hotAnimating || hotItems.length <= 1) return;
+                    animateHot(1);
+                    startHotAutoPlay();
+                };
+            }
+            if (hotPrevBtn) {
+                hotPrevBtn.onclick = () => {
+                    flashHotArrow(hotPrevBtn);
+                    if (hotAnimating || hotItems.length <= 1) return;
+                    animateHot(-1);
+                    startHotAutoPlay();
+                };
+            }
+        });
+
+        function updateUserDisplay() {
+            const display = userName ? userName : 'Bạn';
+            document.getElementById('headerUserName').textContent = display;
+            document.getElementById('nameInput').value = userName;
+        }
+
+        function openNameModal() {
+            document.getElementById('nameInput').value = userName || '';
+            document.getElementById('nameModal').classList.remove('hidden');
+            lucide.createIcons();
+            setTimeout(() => {
+                document.getElementById('nameInput').focus();
+            }, 100);
+        }
+
+        function saveName(e) {
+            e.preventDefault();
+            const val = document.getElementById('nameInput').value.trim();
+            if (val) {
+                userName = val;
+                localStorage.setItem('xuancf_user_name', userName);
+                updateUserDisplay();
+                document.getElementById('nameModal').classList.add('hidden');
+                showToast('Chào ' + userName + '! Hãy chọn bài hát bạn thích nhé.', 'check-circle');
+            }
+        }
+
+        async function fetchQueue() {
+            try {
+                const res = await fetch('/api/queue');
+                const data = await res.json();
+                if (data.success) {
+                    activeQueueData = data.queue;
+                    if (data.playback_mode) updatePlaybackModeUI(data.playback_mode, data.active_playlist);
+                    renderQueue(data.queue);
+                    checkMySong(data.queue);
+                    renderMobileBottomBar();
+                }
+            } catch (err) {
+                console.error('Error fetching queue:', err);
+            }
+        }
+
+        function checkMySong(queue) {
+            let found = null;
+            if (queue.current && queue.current.user_id === userId) {
+                found = { ...queue.current, is_current: true, position: 0 };
+            } else if (queue.waiting) {
+                for (let i = 0; i < queue.waiting.length; i++) {
+                    if (queue.waiting[i].user_id === userId) {
+                        found = { ...queue.waiting[i], is_current: false, position: i + 1 };
+                        break;
+                    }
+                }
+            }
+            myActiveSong = found;
+            renderMySongBanner();
+            renderMobileBottomBar();
+            updateSearchButtonsState();
+        }
+
+        function renderMySongBanner() {
+            const container = document.getElementById('userSongSection');
+            if (!myActiveSong) {
+                container.classList.add('hidden');
+                container.innerHTML = '';
+                return;
+            }
+
+            container.classList.remove('hidden');
+            const isPlaying = myActiveSong.is_current;
+
+            container.innerHTML = `
+                <div class="app-card rounded-2xl p-3.5 sm:p-4 border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-zinc-900/60 to-zinc-950/80 relative overflow-hidden">
+                    <div class="flex items-center justify-between mb-2.5">
+                        <span class="text-[10px] font-mono tracking-wider uppercase font-bold text-amber-400">
+                            BÀI HÁT CỦA BẠN
+                        </span>
+                        ${isPlaying 
+                            ? `<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                ĐANG PHÁT TRÊN LOA
+                               </span>`
+                            : `<span class="bg-amber-500/15 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold">
+                                VỊ TRÍ #${myActiveSong.position} HÀNG ĐỢI
+                               </span>`
+                        }
+                    </div>
+
+                    <div class="flex gap-3 items-center">
+                        <div class="relative flex-shrink-0">
+                            <img src="${myActiveSong.thumbnail || 'https://i.ytimg.com/vi/' + myActiveSong.youtube_id + '/hqdefault.jpg'}" 
+                                 class="w-16 h-12 object-cover rounded-xl shadow border border-white/10 flex-shrink-0" />
+                            ${isPlaying ? `
+                                <div class="absolute inset-0 bg-black/40 rounded-xl flex items-center justify-center">
+                                    <div class="music-bars">
+                                        <div class="music-bar"></div>
+                                        <div class="music-bar"></div>
+                                        <div class="music-bar"></div>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="text-xs sm:text-sm font-bold text-white truncate tracking-tight">${escapeHtml(myActiveSong.title)}</h4>
+                            <p class="text-[11px] font-mono text-zinc-400 mt-0.5">${escapeHtml(myActiveSong.channel || 'YouTube')} • ${myActiveSong.duration || '--:--'}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between">
+                        <p class="text-[11px] text-zinc-400">
+                            ${isPlaying ? 'Bài của bạn đang vang lên trên loa!' : 'Đang chờ tới lượt... Mỗi người chọn 1 bài.'}
+                        </p>
+                        ${isPlaying ? `
+                            <span class="text-[11px] text-emerald-400 bg-emerald-950/60 border border-emerald-700/50 px-2.5 py-1 rounded-lg font-semibold">
+                                Đang phát
+                            </span>
+                        ` : `
+                            <button onclick="deleteMySong(${myActiveSong.id})" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 border border-rose-500/20 px-3 py-1.5 rounded-xl font-semibold transition">
+                                Hủy bài này
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        /* Mobile Sticky Bottom Bar: Only shown when the user has their own song */
+        function renderMobileBottomBar() {
+            const bar = document.getElementById('mobileBottomBar');
+            if (!bar) return;
+
+            if (myActiveSong) {
+                bar.classList.remove('hidden');
+                const isPlaying = myActiveSong.is_current;
+                bar.innerHTML = `
+                    <div class="max-w-xl mx-auto flex items-center justify-between gap-3 bg-zinc-900/90 border border-white/10 rounded-2xl p-2.5 shadow-xl">
+                        <div class="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer" onclick="scrollToMySong()">
+                            <div class="relative flex-shrink-0">
+                                <img src="${myActiveSong.thumbnail || 'https://i.ytimg.com/vi/' + myActiveSong.youtube_id + '/hqdefault.jpg'}" 
+                                     class="w-10 h-10 object-cover rounded-xl border border-white/10 shadow-sm" />
+                                ${isPlaying ? `
+                                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping"></span>
+                                    <span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+                                ` : ''}
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="flex items-center gap-1.5">
+                                    ${isPlaying 
+                                        ? `<span class="text-[9px] font-mono uppercase font-bold text-emerald-400 flex items-center gap-1">
+                                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Đang phát
+                                           </span>`
+                                        : `<span class="text-[9px] font-mono font-bold text-amber-400">#${myActiveSong.position} Hàng đợi</span>`
+                                    }
+                                    <span class="text-[10px] text-zinc-500">• Bài của bạn</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-white truncate leading-tight">${escapeHtml(myActiveSong.title)}</h4>
+                            </div>
+                        </div>
+                        ${!isPlaying ? `
+                            <button onclick="deleteMySong(${myActiveSong.id})" class="text-xs text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 active:scale-95 border border-rose-500/20 px-3 py-1.5 rounded-xl font-bold flex-shrink-0 transition">
+                                Hủy
+                            </button>
+                        ` : `
+                            <span class="text-[11px] font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl flex-shrink-0">
+                                Đang phát
+                            </span>
+                        `}
+                    </div>
+                `;
+            } else {
+                bar.classList.add('hidden');
+                bar.innerHTML = '';
+            }
+        }
+
+        function scrollToMySong() {
+            const el = document.getElementById('userSongSection');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function scrollToCurrentPlaying() {
+            const el = document.getElementById('currentPlayingBox');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        function focusSearch() {
+            const input = document.getElementById('searchInput');
+            if (input) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                setTimeout(() => input.focus(), 300);
+            }
+        }
+
+        async function deleteMySong(songId) {
+            if (myActiveSong && myActiveSong.is_current) {
+                showToast('Bài hát đang được phát trên loa, bạn không thể hủy nữa!', 'alert-circle');
+                return;
+            }
+            if (!confirm('Bạn có chắc chắn muốn hủy bài hát này để chọn bài khác?')) return;
+            try {
+                const res = await fetch('/api/queue/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        song_id: songId,
+                        user_id: userId,
+                        is_admin: false
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã hủy bài hát thành công!', 'check');
+                    fetchQueue();
+                } else {
+                    showToast(data.message || 'Không thể hủy bài hát!', 'alert-circle');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi kết nối khi hủy bài!', 'wifi-off');
+            }
+        }
+
+        function renderQueue(queue) {
+            const currentBox = document.getElementById('currentPlayingBox');
+            const waitingList = document.getElementById('waitingList');
+            const queueBadge = document.getElementById('queueBadge');
+
+            const waitingCount = queue.waiting ? queue.waiting.length : 0;
+            queueBadge.textContent = `${waitingCount} bài chờ`;
+
+            // Render Current Playing
+            if (queue.current) {
+                currentBox.classList.remove('hidden');
+                document.getElementById('currentTitle').textContent = queue.current.title;
+                document.getElementById('currentChannel').textContent = queue.current.channel || 'YouTube';
+                document.getElementById('currentUser').textContent = queue.current.user_name || 'Khách';
+                document.getElementById('currentThumb').src = queue.current.thumbnail || `https://i.ytimg.com/vi/${queue.current.youtube_id}/hqdefault.jpg`;
+            } else {
+                currentBox.classList.add('hidden');
+            }
+
+            // Render Waiting List
+            if (!queue.waiting || queue.waiting.length === 0) {
+                waitingList.innerHTML = `
+                    <div class="text-center py-7 app-card rounded-2xl border-dashed border-zinc-800">
+                        <p class="text-xs font-semibold text-zinc-400">Chưa có bài hát nào trong hàng đợi</p>
+                        <p class="text-[11px] text-zinc-500 mt-1">Hãy tìm và chọn bài hát yêu thích của bạn ở trên!</p>
+                    </div>
+                `;
+            } else {
+                waitingList.innerHTML = queue.waiting.map((song, idx) => {
+                    const isMine = song.user_id === userId;
+                    const isScheduled = song.user_id === 'ADMIN_SCHEDULED';
+                    const idxStr = String(idx + 1).padStart(2, '0');
+                    return `
+                        <div class="app-card rounded-xl p-2.5 flex items-center gap-3 transition hover:border-zinc-700 ${isMine ? 'border-amber-500/50 bg-amber-500/[0.04]' : (isScheduled ? 'border-amber-500/30 bg-amber-500/[0.03]' : '')}">
+                            <div class="w-7 text-center font-mono font-bold text-xs ${idx === 0 ? 'text-amber-400' : 'text-zinc-500'}">
+                                #${idxStr}
+                            </div>
+                            <div class="relative flex-shrink-0">
+                                <img src="${song.thumbnail || 'https://i.ytimg.com/vi/' + song.youtube_id + '/hqdefault.jpg'}" 
+                                     class="w-14 h-10 object-cover rounded-lg shadow-sm border border-white/5 flex-shrink-0" />
+                                <span class="absolute bottom-0.5 right-0.5 bg-black/80 font-mono text-[9px] text-zinc-300 px-1 rounded">${song.duration || '--:--'}</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h4 class="text-xs font-bold text-white truncate tracking-tight">${escapeHtml(song.title)}</h4>
+                                <div class="flex items-center gap-2 text-[11px] text-zinc-400 mt-0.5">
+                                    <span class="truncate">${escapeHtml(song.channel || 'YouTube')}</span>
+                                    <span>•</span>
+                                    <span class="${isMine || isScheduled ? 'text-amber-300 font-semibold flex items-center gap-1' : 'text-zinc-300'}">
+                                        ${isMine 
+                                            ? '<span class="bg-amber-500/20 text-amber-300 font-mono px-1.5 py-0.2 rounded text-[10px]">Bạn</span>' 
+                                            : (isScheduled 
+                                                ? '<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-1.5 py-0.2 rounded text-[10px] font-semibold font-mono">Hẹn giờ</span>' 
+                                                : escapeHtml(song.user_name))}
+                                    </span>
+                                </div>
+                            </div>
+                            ${isMine ? `
+                                <button onclick="deleteMySong(${song.id})" title="Hủy bài của bạn" class="text-[11px] font-semibold text-rose-400 hover:text-rose-300 active:scale-95 px-2.5 py-1 rounded-lg bg-rose-500/10 border border-rose-500/20 transition">
+                                    Hủy
+                                </button>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // High-Performance Instant Search Engine (Client Cache + AbortController + 300ms Debounce)
+        let searchResultsData = [];
+        let searchDebounceTimer = null;
+        let lastSearchedQuery = '';
+        let searchAbortCtrl = null;
+        const clientSearchCache = new Map();
+
+        async function handleSearch(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            clearTimeout(searchDebounceTimer);
+
+            const query = document.getElementById('searchInput').value.trim();
+            if (!query) {
+                clearSearch();
+                return;
+            }
+
+            if (!userName) {
+                document.getElementById('searchSpinner')?.classList.add('hidden');
+                openNameModal();
+                return;
+            }
+
+            if (query === lastSearchedQuery && searchResultsData.length > 0) {
+                document.getElementById('searchSpinner')?.classList.add('hidden');
+                return;
+            }
+
+            // 1. Instant 0ms cache check in frontend
+            const cacheKey = query.toLowerCase();
+            if (clientSearchCache.has(cacheKey)) {
+                lastSearchedQuery = query;
+                searchResultsData = clientSearchCache.get(cacheKey);
+                renderSearchResults(searchResultsData);
+                document.getElementById('searchSpinner')?.classList.add('hidden');
+                return;
+            }
+
+            // 2. Abort any previous search still in flight (stops network congestion)
+            if (searchAbortCtrl) {
+                searchAbortCtrl.abort();
+            }
+            searchAbortCtrl = new AbortController();
+
+            const spinner = document.getElementById('searchSpinner');
+            if (spinner) spinner.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`, {
+                    signal: searchAbortCtrl.signal
+                });
+                const data = await res.json();
+                if (data.success) {
+                    lastSearchedQuery = query;
+                    searchResultsData = data.results || [];
+                    if (clientSearchCache.size > 100) {
+                        const firstKey = clientSearchCache.keys().next().value;
+                        clientSearchCache.delete(firstKey);
+                    }
+                    clientSearchCache.set(cacheKey, searchResultsData);
+                    renderSearchResults(searchResultsData);
+                } else {
+                    showToast('Không tìm thấy bài hát!', 'alert-circle');
+                }
+            } catch (err) {
+                if (err.name === 'AbortError') return; // Request superseded, ignore
+                console.error(err);
+                showToast('Lỗi kết nối khi tìm bài!', 'wifi-off');
+            } finally {
+                if (spinner) spinner.classList.add('hidden');
+            }
+        }
+
+        function clearSearch() {
+            clearTimeout(searchDebounceTimer);
+            if (searchAbortCtrl) {
+                searchAbortCtrl.abort();
+                searchAbortCtrl = null;
+            }
+            const input = document.getElementById('searchInput');
+            input.value = '';
+            document.getElementById('clearSearchBtn').classList.add('hidden');
+            const spinner = document.getElementById('searchSpinner');
+            if (spinner) spinner.classList.add('hidden');
+            document.getElementById('searchResultsSection').classList.add('hidden');
+            lastSearchedQuery = '';
+            searchResultsData = [];
+            input.focus();
+        }
+
+        // Live search: auto-searches 300ms after user pauses typing, or instant on Enter
+        document.getElementById('searchInput').addEventListener('input', function() {
+            clearTimeout(searchDebounceTimer);
+            const val = this.value.trim();
+            const clearBtn = document.getElementById('clearSearchBtn');
+            const spinner = document.getElementById('searchSpinner');
+
+            if (val) {
+                clearBtn.classList.remove('hidden');
+                if (spinner) spinner.classList.remove('hidden');
+
+                searchDebounceTimer = setTimeout(() => {
+                    handleSearch(new Event('submit'));
+                }, 300);
+            } else {
+                clearSearch();
+            }
+        });
+
+        document.getElementById('searchInput').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchDebounceTimer);
+                handleSearch(new Event('submit'));
+            }
+        });
+
+        function renderSearchResults(results) {
+            const section = document.getElementById('searchResultsSection');
+            const list = document.getElementById('searchResultsList');
+            const count = document.getElementById('resultsCount');
+
+            if (!results || results.length === 0) {
+                section.classList.remove('hidden');
+                list.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 app-card rounded-xl">Không tìm thấy bài hát nào phù hợp. Thử từ khóa khác nhé!</div>`;
+                count.textContent = '0 kết quả';
+                return;
+            }
+
+            section.classList.remove('hidden');
+            count.textContent = `${results.length} bài hát`;
+
+            list.innerHTML = results.map((item, idx) => {
+                const isPlOnly = (currentPlaybackMode === 'playlist_only');
+                const disabled = (!!myActiveSong) || isPlOnly;
+                let btnText = 'Chọn';
+                if (isPlOnly) {
+                    btnText = 'Khóa';
+                } else if (myActiveSong) {
+                    btnText = 'Đã có bài';
+                }
+
+                return `
+                    <div class="app-card rounded-xl p-2.5 flex items-center gap-3 transition hover:border-zinc-700">
+                        <div class="relative flex-shrink-0">
+                            <img src="${item.thumbnail}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&h=200&fit=crop';" class="w-16 h-12 object-cover rounded-lg shadow-sm border border-white/5" />
+                            <span class="absolute bottom-1 right-1 bg-black/85 text-[9px] text-zinc-300 px-1 py-0.2 rounded font-mono">${item.duration || '--:--'}</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <h4 class="text-xs font-bold text-white line-clamp-2 leading-snug tracking-tight">${escapeHtml(item.title)}</h4>
+                            <p class="text-[11px] text-zinc-400 mt-1 truncate">${escapeHtml(item.channel)}</p>
+                        </div>
+                        <button 
+                            id="selectBtn-${idx}"
+                            onclick="selectSong(${idx})" 
+                            ${disabled ? 'disabled' : ''}
+                            class="flex-shrink-0 ${disabled ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold active:scale-95 shadow-sm'} px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono flex items-center justify-center transition">
+                            <span>${btnText}</span>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateSearchButtonsState() {
+            if (searchResultsData.length > 0) {
+                renderSearchResults(searchResultsData);
+            }
+        }
+
+        let isSubmittingSong = false;
+
+        async function selectSong(index) {
+            if (isSubmittingSong) return;
+
+            if (currentPlaybackMode === 'playlist_only') {
+                showToast('Quán hiện đang phát Playlist cố định, tạm dừng nhận bài từ khách!', 'alert-circle');
+                return;
+            }
+
+            if (myActiveSong) {
+                showToast(`Bạn đã chọn bài '${myActiveSong.title}'. Hãy đợi phát xong hoặc hủy bài để chọn bài mới!`, 'alert-circle');
+                return;
+            }
+
+            if (!userName) {
+                openNameModal();
+                return;
+            }
+
+            const item = searchResultsData[index];
+            if (!item) return;
+
+            // Instant 0ms visual tactile feedback
+            const clickedBtn = document.getElementById(`selectBtn-${index}`);
+            let originalHtml = '';
+            if (clickedBtn) {
+                originalHtml = clickedBtn.innerHTML;
+                clickedBtn.disabled = true;
+                clickedBtn.innerHTML = `<span>Đang nạp...</span>`;
+                clickedBtn.className = "flex-shrink-0 bg-amber-600 text-zinc-950 font-extrabold px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono flex items-center justify-center opacity-85";
+            }
+
+            isSubmittingSong = true;
+            try {
+                const res = await fetch('/api/queue/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: item.id,
+                        title: item.title,
+                        thumbnail: item.thumbnail,
+                        duration: item.duration,
+                        channel: item.channel,
+                        user_name: userName,
+                        user_id: userId,
+                        is_admin: false
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã thêm bài hát vào hàng đợi thành công!', 'check-circle');
+                    clearSearch();
+                    fetchQueue();
+                } else {
+                    showToast(data.message || 'Không thể thêm bài!', 'alert-triangle');
+                    if (clickedBtn) {
+                        clickedBtn.disabled = false;
+                        clickedBtn.innerHTML = originalHtml;
+                        clickedBtn.className = "flex-shrink-0 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold active:scale-95 shadow-sm px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono flex items-center justify-center transition";
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('Lỗi kết nối khi chọn bài!', 'wifi-off');
+                if (clickedBtn) {
+                    clickedBtn.disabled = false;
+                    clickedBtn.innerHTML = originalHtml;
+                    clickedBtn.className = "flex-shrink-0 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold active:scale-95 shadow-sm px-3.5 py-2 rounded-xl text-xs uppercase tracking-wider font-mono flex items-center justify-center transition";
+                }
+            } finally {
+                setTimeout(() => { isSubmittingSong = false; }, 400);
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toastMsg');
+
+            toastMsg.textContent = msg;
+
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 3500);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
