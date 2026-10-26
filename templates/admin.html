@@ -166,10 +166,9 @@
                     </div>
                 </div>
 
-                <div id="adminCurrentActions" class="hidden pt-3 mt-2 border-t border-slate-800/80 flex flex-wrap sm:flex-nowrap gap-2">
-                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài đang hát vào Playlist gốc của quán (bài hát yêu thích)" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition flex-shrink-0 active:scale-95 shadow-sm">
-                        <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400 fill-rose-400/30"></i>
-                        <span>Lưu vào Playlist</span>
+                <div id="adminCurrentActions" class="hidden pt-3 mt-2 border-t border-slate-800/80 flex items-center gap-2">
+                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài đang phát vào Playlist gốc (Yêu thích)" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 p-2 sm:px-2.5 rounded-xl flex items-center justify-center transition flex-shrink-0 active:scale-95 shadow-sm">
+                        <i data-lucide="heart" class="w-4 h-4 text-rose-400 fill-rose-400/30"></i>
                     </button>
                     <button type="button" onclick="remoteCmd('next')" class="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
                         <i data-lucide="skip-forward" class="w-3.5 h-3.5"></i>
@@ -1270,6 +1269,9 @@
                                             <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
                                             <span>Hẹn giờ</span>
                                         </button>
+                                        <button onclick="saveQueueSongToPlaylist(${idx})" title="Lưu bài vào Playlist gốc" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 p-1 rounded-lg transition active:scale-95">
+                                            <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400 fill-rose-400/30"></i>
+                                        </button>
                                         <button onclick="adminDeleteSong(${song.id})" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1 rounded-lg transition">
                                             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                         </button>
@@ -1298,6 +1300,9 @@
                                 <button onclick="openScheduleModalFromQueue(${idx})" title="Hẹn giờ phát bài này" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
                                     <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
                                     <span>Hẹn giờ</span>
+                                </button>
+                                <button onclick="saveQueueSongToPlaylist(${idx})" title="Lưu bài này vào Playlist gốc của quán" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 p-1.5 rounded-lg transition active:scale-95">
+                                    <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400 fill-rose-400/30"></i>
                                 </button>
                                 <button onclick="adminDeleteSong(${song.id})" title="Xóa bài này khỏi hàng đợi" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1.5 rounded-lg transition">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
@@ -1691,15 +1696,27 @@
         }
 
         // ============================================================
-        // LƯU BÀI ĐANG HÁT VÀO PLAYLIST GỐC (BÀI HÁT YÊU THÍCH)
+        // LƯU BÀI VÀO PLAYLIST GỐC (BÀI HÁT YÊU THÍCH)
         // ============================================================
+        let targetSongToSave = null;
+
         async function saveCurrentSongToPlaylist() {
             if (!currentPlayingSong) {
                 showToast('Hiện chưa có bài hát nào đang phát trên loa!', 'warning');
                 return;
             }
+            targetSongToSave = currentPlayingSong;
+            await processSaveSongToPlaylist(targetSongToSave);
+        }
 
-            // Đảm bảo dữ liệu playlistsData đã được load
+        async function saveQueueSongToPlaylist(idx) {
+            const song = currentAdminQueueWaiting[idx];
+            if (!song) return;
+            targetSongToSave = song;
+            await processSaveSongToPlaylist(targetSongToSave);
+        }
+
+        async function processSaveSongToPlaylist(song) {
             if (!playlistsData || playlistsData.length === 0) {
                 try {
                     const res = await fetch('/api/playlists');
@@ -1713,19 +1730,17 @@
             }
 
             if (!playlistsData || playlistsData.length === 0) {
-                showToast('Chưa có Playlist gốc nào! Hãy cuộn xuống mục Playlist để tạo mới trước.', 'warning');
+                showToast('Chưa có Playlist gốc nào! Hãy tạo Playlist trước.', 'warning');
                 return;
             }
 
-            // Nếu chỉ có đúng 1 playlist -> Lưu trực tiếp luôn
             if (playlistsData.length === 1) {
                 const singlePl = playlistsData[0];
-                executeSaveCurrentToPlaylist(singlePl.id, singlePl.name);
+                executeSaveSongToPlaylist(song, singlePl.id, singlePl.name);
                 return;
             }
 
-            // Nếu có từ 2 playlist trở lên -> Mở modal cho admin chọn playlist
-            openSaveCurrentToPlaylistModal(currentPlayingSong);
+            openSaveCurrentToPlaylistModal(song);
         }
 
         function openSaveCurrentToPlaylistModal(song) {
@@ -1786,8 +1801,13 @@
         }
 
         async function executeSaveCurrentToPlaylist(playlistId, playlistName) {
-            if (!currentPlayingSong) {
-                showToast('Hiện không có bài hát nào đang phát!', 'warning');
+            const song = targetSongToSave || currentPlayingSong;
+            await executeSaveSongToPlaylist(song, playlistId, playlistName);
+        }
+
+        async function executeSaveSongToPlaylist(song, playlistId, playlistName) {
+            if (!song) {
+                showToast('Không tìm thấy thông tin bài hát!', 'warning');
                 return;
             }
 
@@ -1797,7 +1817,14 @@
                 const res = await fetch('/api/playlists/save_current', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ playlist_id: playlistId })
+                    body: JSON.stringify({
+                        playlist_id: playlistId,
+                        youtube_id: song.youtube_id || song.id,
+                        title: song.title,
+                        thumbnail: song.thumbnail,
+                        duration: song.duration,
+                        channel: song.channel
+                    })
                 });
                 const data = await res.json();
                 if (data.success) {
