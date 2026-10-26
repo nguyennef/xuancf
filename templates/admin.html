@@ -1,0 +1,3421 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xuân CF • Quản Trị Hàng Đợi (Admin)</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (Local instant load) -->
+    <script src="/static/js/tailwind.min.js"></script>
+    <!-- Lucide Icons (Local instant load) -->
+    <script src="/static/js/lucide.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="/static/js/socket.io.min.js"></script>
+    <style>
+        body {
+            background-color: #08090d;
+            background-image: 
+                radial-gradient(at 50% 0%, rgba(245, 158, 11, 0.04) 0px, transparent 60%);
+            color: #f4f4f5;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .admin-card {
+            background: #0f1118;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-20">
+
+    <!-- Header (Compact Mobile-First) -->
+    <header class="admin-card border-b border-white/10 px-3.5 py-2.5 sm:px-6 sm:py-3.5 sticky top-0 z-30 shadow-xl backdrop-blur-md">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-amber-400 shadow-inner flex-shrink-0">
+                    <i data-lucide="shield-check" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="font-extrabold text-sm sm:text-lg text-white flex items-center gap-2 uppercase tracking-tight truncate">
+                        <span>Xuân CF Music</span>
+                        <span class="text-[9px] sm:text-[10px] font-mono tracking-widest bg-amber-500/15 text-amber-300 border border-amber-500/30 px-1.5 py-0.5 rounded font-bold">ADMIN</span>
+                    </h1>
+                    <p class="text-[11px] text-zinc-400 truncate">Điều khiển hàng đợi, ưu tiên bài hát & quản lý loa</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="/speaker" target="_blank" class="hidden sm:inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl hover:bg-amber-500/20 transition">
+                    <i data-lucide="tv" class="w-3.5 h-3.5"></i>
+                    <span>Mở Loa</span>
+                </a>
+                <button type="button" onclick="adminLogout()" class="inline-flex items-center gap-1.5 text-xs text-rose-300 bg-rose-500/10 border border-rose-500/30 px-3 py-1.5 rounded-xl hover:bg-rose-500/20 transition" title="Khóa Admin (Đăng xuất)">
+                    <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+                    <span class="hidden sm:inline">Khóa Admin</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 pt-3.5 sm:pt-6 space-y-4 sm:space-y-6">
+
+        <!-- Playback Mode Switcher Banner (Chỉ chọn 1 trong 2) -->
+        <div class="admin-card rounded-2xl p-3.5 sm:p-5 border border-slate-800 shadow-xl bg-gradient-to-r from-slate-900/90 via-indigo-950/30 to-purple-950/30">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                <div>
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <i data-lucide="radio-tower" class="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400"></i>
+                        <h2 class="text-xs sm:text-sm font-bold text-white uppercase tracking-wider">Chế độ phát nhạc</h2>
+                        <span id="currentModeBadge" class="text-[10px] sm:text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            Bình thường (Ưu tiên khách)
+                        </span>
+                    </div>
+                    <p class="text-[11px] sm:text-xs text-slate-400">Chọn 1 trong 2 chế độ điều phối âm thanh (Đồng bộ tức thì tới Loa & Điện thoại khách):</p>
+                </div>
+
+                <!-- 2 Exclusive Mode Buttons -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 max-w-xl w-full">
+                    
+                    <!-- Mode 1: Auto Priority -->
+                    <button type="button" onclick="setPlaybackMode('auto_priority')" id="btnModeAuto" class="p-2.5 sm:p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-emerald-500/80 bg-emerald-950/40 shadow-lg shadow-emerald-950/30">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-xs text-white flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                1. Bình thường (Ưu tiên khách)
+                            </span>
+                            <i data-lucide="check-circle" id="checkModeAuto" class="w-4 h-4 text-emerald-400"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-300 line-clamp-2">
+                            Luôn ưu tiên khách. Đang phát nhạc nền mà khách order -> tự động chuyển ngay sang bài khách.
+                        </p>
+                    </button>
+
+                    <!-- Mode 2: Playlist Only -->
+                    <button type="button" onclick="setPlaybackMode('playlist_only')" id="btnModePlaylist" class="p-2.5 sm:p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-slate-700 bg-slate-900/60 hover:border-slate-600">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-bold text-xs text-white flex items-center gap-1.5">
+                                <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+                                2. Cố định Playlist Quán
+                            </span>
+                            <i data-lucide="check-circle" id="checkModePlaylist" class="w-4 h-4 text-slate-600 hidden"></i>
+                        </div>
+                        <p class="text-[11px] text-slate-400 line-clamp-2">
+                            Chỉ phát Playlist Quán do Admin chọn bên dưới. Tạm dừng nhận bài từ khách.
+                        </p>
+                    </button>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Remote Speaker Controls & Statistics -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-3.5 sm:gap-5">
+            
+            <!-- Speaker Controller -->
+            <div class="admin-card rounded-2xl p-3.5 sm:p-5 border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-4 h-4 text-purple-400"></i>
+                            Điều khiển loa từ xa
+                        </h3>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                    <p class="text-[11px] sm:text-xs text-slate-400 mb-3">Tác động trực tiếp lên màn hình loa ngay lập tức.</p>
+                </div>
+
+                <div class="space-y-2.5">
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <button id="adminPlayPauseBtn" onclick="toggleAdminPlayPause()" class="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                            <i data-lucide="pause" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                            <span class="truncate">Tạm dừng</span>
+                        </button>
+                        <button onclick="remoteCmd('next')" class="bg-slate-800 hover:bg-slate-700 text-purple-300 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                            <i data-lucide="skip-forward" class="w-3.5 h-3.5 flex-shrink-0"></i>
+                            <span class="truncate">Bỏ qua</span>
+                        </button>
+                    </div>
+
+                    <!-- Volume slider -->
+                    <div class="bg-slate-900/60 p-2.5 rounded-xl border border-slate-800 flex items-center gap-3">
+                        <i data-lucide="volume-2" class="w-4 h-4 text-slate-400 flex-shrink-0"></i>
+                        <input id="adminVolumeSlider" type="range" min="0" max="100" value="100" oninput="onAdminVolumeInput(this.value)" class="w-full accent-purple-500 cursor-pointer h-1.5 bg-slate-700 rounded-lg" />
+                        <span id="adminVolPercent" class="text-xs font-mono font-bold text-purple-300 min-w-[38px] text-right">100%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Current Playing Box -->
+            <div class="admin-card rounded-2xl p-3.5 sm:p-5 border border-slate-800 flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-2.5">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+                            <i data-lucide="music" class="w-4 h-4 text-emerald-400"></i>
+                            Đang phát hiện tại
+                        </h3>
+                        <span id="playingBadge" class="text-[10px] sm:text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">LIVE</span>
+                    </div>
+
+                    <div id="adminNowPlayingContent" class="flex gap-3 items-center">
+                        <div class="text-slate-500 text-xs py-3">Chưa có bài nào đang phát</div>
+                    </div>
+                </div>
+
+                <div id="adminCurrentActions" class="hidden pt-3 mt-2 border-t border-slate-800/80 flex flex-wrap sm:flex-nowrap gap-2">
+                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài đang hát vào Playlist gốc của quán (bài hát yêu thích)" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition flex-shrink-0 active:scale-95 shadow-sm">
+                        <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400 fill-rose-400/30"></i>
+                        <span>Lưu vào Playlist</span>
+                    </button>
+                    <button type="button" onclick="remoteCmd('next')" class="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
+                        <i data-lucide="skip-forward" class="w-3.5 h-3.5"></i>
+                        <span>Kết thúc bài này & chuyển tiếp</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick QR & Link Info -->
+            <div class="admin-card rounded-2xl p-3.5 sm:p-5 border border-slate-800 flex items-center gap-3.5">
+                <a href="/api/qrcode" target="_blank" title="Bấm để phóng to hoặc in mã QR" class="flex-shrink-0 bg-white p-1.5 sm:p-2 rounded-xl border border-slate-700 shadow">
+                    <img src="/api/qrcode" class="w-20 h-20 sm:w-24 sm:h-24 object-contain" alt="QR Code" />
+                </a>
+                <div class="space-y-1 text-xs min-w-0">
+                    <h4 class="font-bold text-white flex items-center gap-1.5">
+                        <i data-lucide="qr-code" class="w-4 h-4 text-pink-400"></i>
+                        Mã QR Quán
+                    </h4>
+                    <p class="text-slate-400 text-[11px] leading-snug">In mã này dán tại bàn để khách quét và chọn nhạc.</p>
+                    <div class="pt-1 flex flex-wrap gap-1.5">
+                        <a href="/api/qrcode" download="xuancf-qr.png" class="inline-flex items-center gap-1 text-[11px] text-purple-300 hover:text-purple-200 bg-purple-950/60 border border-purple-800/60 px-2.5 py-1 rounded-lg">
+                            <i data-lucide="download" class="w-3 h-3"></i> Tải QR
+                        </a>
+                        <a href="/speaker" target="_blank" class="inline-flex items-center gap-1 text-[11px] text-emerald-300 hover:text-emerald-200 bg-emerald-950/60 border border-emerald-800/60 px-2.5 py-1 rounded-lg">
+                            <i data-lucide="tv" class="w-3 h-3"></i> Mở Loa
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Waiting Queue Table Section -->
+        <div class="admin-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+                <div class="flex items-center gap-2">
+                    <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                        <i data-lucide="list-ordered" class="w-4 h-4 sm:w-5 sm:h-5 text-purple-400"></i>
+                        <span>Hàng Đợi Chờ Hát</span>
+                    </h2>
+                    <span id="queueCountBadge" class="bg-purple-950/80 text-purple-300 border border-purple-800 text-[11px] px-2 py-0.5 rounded-full font-bold">0 bài</span>
+                </div>
+
+                <div class="flex items-center gap-1.5">
+                    <button onclick="openAddModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 shadow-sm transition">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                        <span>Thêm bài</span>
+                    </button>
+                    <button onclick="confirmClearAll()" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        <span>Xóa hết</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <div class="w-full">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="px-2.5 sm:px-4 py-3 w-9 sm:w-12 text-center">#</th>
+                            <th class="px-2.5 sm:px-4 py-3">Bài hát</th>
+                            <th class="hidden md:table-cell px-4 py-3">Kênh / Nghệ sĩ</th>
+                            <th class="hidden md:table-cell px-4 py-3">Thời lượng</th>
+                            <th class="hidden md:table-cell px-4 py-3">Người Order</th>
+                            <th class="hidden lg:table-cell px-4 py-3">Thời gian</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminQueueTbody" class="divide-y divide-slate-800/60">
+                        <tr>
+                            <td colspan="7" class="text-center py-10 text-slate-500">
+                                <i data-lucide="disc-3" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+                                Hàng đợi hiện đang trống.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quản Lý Hẹn Giờ Phát Nhạc Section -->
+        <div id="scheduleSection" class="admin-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-r from-slate-900 via-amber-950/20 to-slate-900">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 flex-shrink-0">
+                        <i data-lucide="clock" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                            <span>Lịch Hẹn Giờ Phát Nhạc</span>
+                            <span id="schedulesCountBadge" class="bg-amber-950/80 text-amber-300 border border-amber-800 text-[11px] px-2 py-0.5 rounded-full font-bold">0 lịch</span>
+                        </h2>
+                        <p class="text-[11px] sm:text-xs text-slate-400">Đến giờ hẹn, bài hát tự động ưu tiên phát ngay.</p>
+                    </div>
+                </div>
+
+                <button onclick="openScheduleModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                    <i data-lucide="plus-circle" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <span>Đặt Lịch Mới</span>
+                </button>
+            </div>
+
+            <!-- Table of Scheduled Songs -->
+            <div class="w-full">
+                <table class="w-full text-left text-xs">
+                    <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+                        <tr>
+                            <th class="px-2.5 sm:px-4 py-3 w-9 sm:w-12 text-center">#</th>
+                            <th class="px-2 sm:px-4 py-3 w-16 sm:w-auto">Giờ</th>
+                            <th class="px-2.5 sm:px-4 py-3">Bài hát</th>
+                            <th class="hidden md:table-cell px-4 py-3">Kênh</th>
+                            <th class="hidden md:table-cell px-4 py-3">Thời lượng</th>
+                            <th class="hidden md:table-cell px-4 py-3">Chế độ lặp</th>
+                            <th class="hidden md:table-cell px-4 py-3">Trạng thái</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminScheduleTbody" class="divide-y divide-slate-800/60">
+                        <tr>
+                            <td colspan="8" class="text-center py-10 text-slate-500">
+                                <i data-lucide="clock-alert" class="w-7 h-7 mx-auto mb-2 opacity-40"></i>
+                                Chưa có bài hát nào được hẹn giờ.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quản Lý Playlist Quán Section -->
+        <div id="defaultPlaylistSection" class="admin-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30 flex-shrink-0">
+                        <i data-lucide="folder-music" class="w-4 h-4 sm:w-5 sm:h-5"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                            <span>Playlist Quán (Nhạc Nền)</span>
+                            <span id="playlistsTotalBadge" class="bg-indigo-950/80 text-indigo-300 border border-indigo-800 text-[11px] px-2 py-0.5 rounded-full font-bold">0 playlist</span>
+                        </h2>
+                        <p class="text-[11px] sm:text-xs text-slate-400">Chọn playlist đang phát trên loa, trộn bài & chỉnh sửa nhạc nền.</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                    <button onclick="openUploadMp3Modal()" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center gap-1 shadow transition">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                        <span>Upload MP3</span>
+                    </button>
+                    <button onclick="openCreatePlaylistModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-semibold flex items-center gap-1 shadow transition">
+                        <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                        <span>Tạo Playlist</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2-Column Master-Detail Layout -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-800">
+                <!-- Column 1: Playlists list (5 cols) -->
+                <div class="lg:col-span-5 p-3 sm:p-4 space-y-2.5 bg-slate-900/40">
+                    <div class="flex items-center justify-between text-xs font-semibold text-slate-400 px-1">
+                        <span>Danh Sách Playlist Quán</span>
+                        <span class="text-[11px] text-slate-500">Chạm để xem bài</span>
+                    </div>
+                    <div id="playlistsListContainer" class="space-y-2 max-h-[380px] sm:max-h-[500px] overflow-y-auto pr-1">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+
+                <!-- Column 2: Songs inside selected playlist (7 cols) -->
+                <div class="lg:col-span-7 p-3 sm:p-4 flex flex-col justify-between">
+                    <div>
+                        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 mb-2.5 border-b border-slate-800">
+                            <div class="min-w-0">
+                                <h3 id="selectedPlaylistTitle" class="font-bold text-sm text-white flex flex-wrap items-center gap-2">
+                                    -- Chọn một playlist bên trái --
+                                </h3>
+                                <p id="selectedPlaylistDesc" class="text-xs text-slate-400 mt-0.5 truncate"></p>
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                <button id="btnActiveThisPlaylist" onclick="adminActivateCurrentPlaylist()" class="hidden bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition">
+                                    <i data-lucide="radio" class="w-3.5 h-3.5"></i>
+                                    <span>Phát playlist này</span>
+                                </button>
+                                <button id="btnShufflePlaylist" onclick="adminShuffleCurrentPlaylist()" title="Trộn ngẫu nhiên vị trí các bài hát trong playlist (vẫn phát lần lượt từ trên xuống)" class="hidden bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition">
+                                    <i data-lucide="shuffle" class="w-3.5 h-3.5 text-amber-400"></i>
+                                    <span>Trộn bài</span>
+                                </button>
+                                <button id="btnAddSongToPlaylist" onclick="openAddSongToPlaylistModal()" class="hidden bg-indigo-600 hover:bg-indigo-500 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1 transition">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                                    <span>Thêm bài</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Songs Table -->
+                        <div class="w-full max-h-[460px] overflow-y-auto pr-0.5">
+                            <table class="w-full text-left text-xs">
+                                <thead class="bg-slate-900/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800 sticky top-0 z-10">
+                                    <tr>
+                                        <th class="px-2 sm:px-3 py-2.5 w-8 sm:w-10 text-center">#</th>
+                                        <th class="px-2 sm:px-3 py-2.5">Bài hát</th>
+                                        <th class="hidden sm:table-cell px-3 py-2.5">Kênh</th>
+                                        <th class="hidden sm:table-cell px-3 py-2.5">Thời lượng</th>
+                                        <th class="hidden sm:table-cell px-3 py-2.5 text-right">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="selectedPlaylistSongsTbody" class="divide-y divide-slate-800/60">
+                                    <tr>
+                                        <td colspan="5" class="text-center py-10 text-slate-500">Vui lòng bấm chọn một playlist để quản lý bài hát</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quản Lý Món HOT (Menu Nổi Bật) Section -->
+        <div id="hotItemsSection" class="admin-card rounded-2xl border border-slate-800 overflow-hidden shadow-xl">
+            <div class="px-3.5 py-3 sm:px-6 sm:py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2.5 bg-gradient-to-r from-slate-900 via-amber-950/30 to-slate-900">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30 flex-shrink-0">
+                        <i data-lucide="flame" class="w-4 h-4 sm:w-5 sm:h-5 fill-amber-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                            <span>Cài Đặt Menu Quán & Món HOT</span>
+                            <span id="hotItemsCountBadge" class="bg-amber-950/80 text-amber-300 border border-amber-800 text-[11px] px-2 py-0.5 rounded-full font-bold">0 món</span>
+                        </h2>
+                        <p class="text-[11px] sm:text-xs text-slate-400">Quản lý các món hiển thị trong Menu Đĩa Than và ô vòng xoay HOT ngoài trang khách.</p>
+                    </div>
+                </div>
+
+                <button onclick="openAdminHotModal()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition">
+                    <i data-lucide="plus-circle" class="w-3.5 h-3.5 sm:w-4 sm:h-4"></i>
+                    <span>Thêm Món Mới</span>
+                </button>
+            </div>
+
+            <div class="p-3.5 sm:p-5 space-y-4">
+                <!-- Quản lý Phân loại món uống (Categories) -->
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div class="flex items-center gap-2 flex-wrap flex-1" id="adminCategoriesChipList">
+                        <!-- Dynamically rendered category chips -->
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <input type="text" id="newMenuCategoryInput" placeholder="Tên phân loại mới (VD: Nước Ép)..." onkeydown="if(event.key==='Enter'){event.preventDefault();addAdminMenuCategory();}" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400 w-44 sm:w-48" />
+                        <button type="button" onclick="addAdminMenuCategory()" class="bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/40 px-2.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 transition whitespace-nowrap">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Thêm loại</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="adminHotItemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div class="col-span-full text-center py-8 text-xs text-slate-500">Đang tải danh sách món...</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal: Add / Edit HOT Item -->
+    <div id="hotItemAdminModal" onclick="if(event.target===this) closeAdminHotModal()" class="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-md w-full p-4 sm:p-6 border border-slate-700 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div class="flex items-center justify-between pb-3 mb-3.5 border-b border-slate-800">
+                <h3 id="hotModalHeaderTitle" class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                    <i data-lucide="flame" class="w-5 h-5 text-amber-400 fill-amber-400"></i>
+                    <span>Thêm Món HOT Mới</span>
+                </h3>
+                <button type="button" onclick="closeAdminHotModal()" class="text-slate-400 hover:text-white p-1">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleSaveHotItem(event)" class="space-y-3.5">
+                <input type="hidden" id="hotItemIdInput" value="" />
+
+                <!-- Image Upload & Preview -->
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">1. Ảnh món HOT (Chọn từ điện thoại/máy tính):</label>
+                    <div class="flex items-center gap-3">
+                        <div class="w-20 h-24 rounded-xl bg-slate-900 border border-slate-700 overflow-hidden flex-shrink-0 flex items-center justify-center relative">
+                            <img id="hotItemPreviewImg" src="" class="w-full h-full object-cover hidden" />
+                            <i id="hotItemPreviewPlaceholder" data-lucide="image-plus" class="w-6 h-6 text-slate-500"></i>
+                        </div>
+                        <div class="flex-1 space-y-2 min-w-0">
+                            <input type="file" id="hotItemFileInput" accept="image/*" onchange="previewAdminHotImage(event)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-2 text-xs text-slate-300 file:mr-2.5 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-amber-500 file:text-slate-950 hover:file:bg-amber-400 cursor-pointer" />
+                            <input type="text" id="hotItemUrlInput" placeholder="Hoặc dán link ảnh trực tiếp (https://...)" oninput="previewAdminHotUrl(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-400" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">2. Tên món:</label>
+                        <input type="text" id="hotItemNameInput" placeholder="VD: Cà Phê Muối Kem Béo" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400" required />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">3. Giá bán (chỉ nhập số):</label>
+                        <div class="relative flex items-center">
+                            <input type="text" inputmode="numeric" id="hotItemPriceInput" placeholder="VD: 35000" oninput="formatHotPriceInput(this)" class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-3.5 pr-8 py-2 text-xs sm:text-sm text-amber-300 font-mono font-bold focus:outline-none focus:border-amber-400" required />
+                            <span class="absolute right-3 text-xs sm:text-sm font-mono font-bold text-amber-400/80 pointer-events-none">đ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">4. Phân loại món uống:</label>
+                        <select id="hotItemCategoryInput" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-amber-400">
+                            <option value="Cà Phê">Cà Phê</option>
+                            <option value="Trà">Trà</option>
+                            <option value="Sữa & Matcha">Sữa & Matcha</option>
+                            <option value="Bánh & Ăn Vặt">Bánh & Ăn Vặt</option>
+                        </select>
+                    </div>
+                    <div class="space-y-2">
+                        <label class="w-full flex items-center gap-2.5 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 cursor-pointer select-none">
+                            <input type="checkbox" id="hotItemIsHotInput" checked class="w-4 h-4 accent-amber-500 rounded" />
+                            <span class="text-xs font-semibold text-amber-300">🔥 Hiện ở vòng xoay HOT</span>
+                        </label>
+                        <label class="w-full flex items-center gap-2.5 bg-slate-900 border border-yellow-500/40 hover:border-yellow-400 rounded-xl px-3 py-2 cursor-pointer select-none transition">
+                            <input type="checkbox" id="hotItemIsNewInput" onchange="if(this.checked){document.getElementById('hotItemIsHotInput').checked=true;}" class="w-4 h-4 accent-yellow-400 rounded" />
+                            <span class="text-xs font-bold text-yellow-300 flex items-center gap-1.5">
+                                <span>⚡ Món mới (Super Saiyan)</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">5. Mô tả hương vị:</label>
+                    <textarea id="hotItemDescInput" rows="3" placeholder="VD: Cà phê phin đậm đà hòa quyện cùng lớp kem muối mặn ngọt béo ngậy..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-xs sm:text-sm text-white focus:outline-none focus:border-amber-400 resize-none"></textarea>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <button type="button" onclick="closeAdminHotModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition">
+                        Hủy
+                    </button>
+                    <button type="submit" id="btnSubmitHotItem" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold py-2.5 rounded-xl text-xs shadow-lg transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="save" class="w-4 h-4"></i>
+                        <span>Lưu Món HOT</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Create Playlist -->
+    <div id="createPlaylistModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-md w-full p-6 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="folder-plus" class="w-5 h-5 text-indigo-400"></i>
+                    Tạo Playlist Mới
+                </h3>
+                <button onclick="closeCreatePlaylistModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleCreatePlaylist(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Tên Playlist:</label>
+                    <input type="text" id="newPlaylistName" placeholder="Ví dụ: Nhạc Acoustic Sáng, Chill Đêm..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" required />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Mô tả ngắn (Tùy chọn):</label>
+                    <input type="text" id="newPlaylistDesc" placeholder="Ví dụ: Nhạc nhẹ nhàng thư giãn cho khách uống cafe" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" />
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-xl text-xs shadow transition">
+                    Tạo Playlist
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Save Current Song to Playlist (Chọn Playlist khi có >= 2 playlist) -->
+    <div id="saveCurrentToPlaylistModal" onclick="if(event.target===this) closeSaveCurrentToPlaylistModal()" class="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-md w-full p-5 sm:p-6 border border-slate-700 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="heart" class="w-5 h-5 text-rose-400 fill-rose-400/30"></i>
+                    <span>Lưu Vào Playlist Gốc</span>
+                </h3>
+                <button type="button" onclick="closeSaveCurrentToPlaylistModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Preview bài hát đang phát -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 mb-4 flex items-center gap-3">
+                <img id="saveCurrentSongThumb" src="" alt="Thumbnail" class="w-14 h-11 rounded-lg object-cover flex-shrink-0 border border-slate-700 shadow" />
+                <div class="min-w-0 flex-1">
+                    <div class="text-[10px] uppercase font-bold text-rose-400 flex items-center gap-1">
+                        <i data-lucide="disc-3" class="w-3 h-3"></i>
+                        <span>Bài đang phát trên loa</span>
+                    </div>
+                    <h4 id="saveCurrentSongTitle" class="text-xs font-semibold text-white truncate mt-0.5"></h4>
+                    <p id="saveCurrentSongMeta" class="text-[11px] text-slate-400 truncate mt-0.5"></p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-slate-300">
+                        Chọn Playlist để thêm bài hát vào:
+                    </label>
+                    <span id="saveCurrentPlaylistCount" class="text-[10px] text-slate-400 font-mono"></span>
+                </div>
+
+                <div id="saveCurrentPlaylistOptions" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <!-- Dynamic playlist list -->
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex justify-end">
+                    <button type="button" onclick="closeSaveCurrentToPlaylistModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Add Song to Playlist -->
+    <div id="addSongToPlaylistModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-xl w-full p-6 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-indigo-400"></i>
+                    Thêm Bài Hát Vào <span id="modalPlaylistTargetName" class="text-indigo-300"></span>
+                </h3>
+                <button onclick="closeAddSongToPlaylistModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Tabs: YouTube vs Local MP3 -->
+            <div class="flex items-center gap-2 p-1 bg-slate-900 rounded-xl mb-4 border border-slate-800">
+                <button type="button" id="tabBtnYoutube" onclick="switchPlaylistAddTab('yt')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-indigo-600 transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="youtube" class="w-3.5 h-3.5 text-rose-400"></i>
+                    <span>Tìm YouTube</span>
+                </button>
+                <button type="button" id="tabBtnMp3" onclick="switchPlaylistAddTab('mp3')" class="flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5">
+                    <i data-lucide="folder-audio" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    <span>Kho File MP3 Quán</span>
+                </button>
+            </div>
+
+            <!-- Pane 1: YouTube Search -->
+            <div id="paneAddYoutube" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Tìm trên YouTube hoặc dán link:</label>
+                    <form onsubmit="handleSearchForPlaylist(event)" class="relative">
+                        <div class="relative flex items-center">
+                            <div class="absolute left-3.5 text-slate-400 pointer-events-none flex items-center">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="searchForPlaylistInput" 
+                                placeholder="Gõ tên bài hát hoặc dán link YouTube..." 
+                                autocomplete="off"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition shadow-inner" 
+                            />
+                            <div class="absolute right-2.5 flex items-center gap-1">
+                                <div id="playlistSearchSpinner" class="hidden text-indigo-400 animate-spin">
+                                    <i data-lucide="loader-2" class="w-4 h-4"></i>
+                                </div>
+                                <button type="button" onclick="clearPlaylistSearch()" id="playlistClearSearchBtn" class="hidden text-slate-400 hover:text-white p-1 rounded-md transition" title="Xóa">
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="searchForPlaylistResults" class="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+
+            <!-- Pane 2: Local MP3 File Library -->
+            <div id="paneAddMp3" class="space-y-3 hidden">
+                <div class="flex items-center justify-between text-xs pb-1">
+                    <span class="text-slate-400">Danh sách file MP3 offline đã tải lên máy chủ:</span>
+                    <button onclick="openUploadMp3Modal()" class="text-emerald-400 hover:text-emerald-300 font-semibold flex items-center gap-1">
+                        <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                        <span>+ Upload thêm file mới</span>
+                    </button>
+                </div>
+
+                <div id="localMp3ListContainer" class="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    <div class="text-center py-6 text-slate-500 text-xs">Đang tải danh sách file...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Upload Local MP3 -->
+    <div id="uploadMp3Modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-md w-full p-6 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="upload-cloud" class="w-5 h-5 text-emerald-400"></i>
+                    Upload File Nhạc MP3 Offline
+                </h3>
+                <button onclick="closeUploadMp3Modal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                Tải trực tiếp bài hát (.mp3, .m4a, .wav) lên máy chủ quán. Nhạc offline phát tức thì, không quảng cáo và không lo bị YouTube giới hạn bản quyền.
+            </p>
+
+            <form onsubmit="handleUploadMp3(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Chọn file từ máy tính:</label>
+                    <input type="file" id="mp3FileInput" accept=".mp3,.m4a,.wav,.ogg,.flac" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer" required />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Tùy chọn: Thêm ngay vào Playlist:</label>
+                    <select id="uploadTargetPlaylistSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+                        <option value="">-- Chỉ lưu vào kho (chưa gắn vào playlist) --</option>
+                    </select>
+                </div>
+
+                <div id="uploadProgressContainer" class="hidden pt-1">
+                    <div class="flex items-center justify-between text-xs text-emerald-400 mb-1.5">
+                        <span id="uploadProgressText">Đang tải file lên máy chủ...</span>
+                        <i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i>
+                    </div>
+                    <div class="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
+                        <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2 rounded-full animate-pulse w-full"></div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closeUploadMp3Modal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition">
+                        Hủy
+                    </button>
+                    <button type="submit" id="btnSubmitUploadMp3" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:opacity-90 text-white font-semibold py-2.5 rounded-xl text-xs shadow-lg shadow-emerald-950/50 transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <span>Bắt đầu Upload</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Admin Add Song -->
+    <div id="addModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-xl w-full p-6 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-pink-400"></i>
+                    Admin Thêm Bài Hát (Không giới hạn)
+                </h3>
+                <button onclick="closeAddModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Tên người order (Hoặc tên quán):</label>
+                    <input type="text" id="adminUserNameInput" value="Quán" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-purple-500" />
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">Tìm trên YouTube hoặc dán link:</label>
+                    <form onsubmit="adminSearch(event)" class="relative">
+                        <div class="relative flex items-center">
+                            <div class="absolute left-3.5 text-slate-400 pointer-events-none flex items-center">
+                                <i data-lucide="search" class="w-4 h-4"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="adminSearchInput" 
+                                placeholder="Gõ tên bài hát hoặc dán link YouTube..." 
+                                autocomplete="off"
+                                class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-10 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-purple-500 transition shadow-inner" 
+                            />
+                            <div class="absolute right-2.5 flex items-center gap-1">
+                                <div id="adminSearchSpinner" class="hidden text-pink-400 animate-spin">
+                                    <i data-lucide="loader-2" class="w-4 h-4"></i>
+                                </div>
+                                <button type="button" onclick="clearAdminSearch()" id="adminClearSearchBtn" class="hidden text-slate-400 hover:text-white p-1 rounded-md transition" title="Xóa">
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Admin Search Results -->
+                <div id="adminSearchResults" class="max-h-64 overflow-y-auto space-y-2 pr-1">
+                    <!-- Dynamic -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Schedule Song (Hẹn Giờ Phát Nhạc) -->
+    <div id="scheduleModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-lg w-full p-6 border border-slate-700 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="clock" class="w-5 h-5 text-amber-400"></i>
+                    Đặt Lịch Hẹn Giờ Phát Nhạc
+                </h3>
+                <button onclick="closeScheduleModal()" class="text-slate-400 hover:text-white">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Form -->
+            <form onsubmit="handleSaveSchedule(event)" class="space-y-4">
+                <!-- Selected Song Preview -->
+                <div id="scheduleSongSelectedCard" class="hidden p-3 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
+                    <img id="schedSongThumb" src="" class="w-14 h-10 object-cover rounded-lg border border-slate-700 flex-shrink-0" />
+                    <div class="min-w-0 flex-1">
+                        <h4 id="schedSongTitle" class="text-xs font-semibold text-white truncate"></h4>
+                        <p id="schedSongMeta" class="text-[11px] text-slate-400 mt-0.5 truncate"></p>
+                    </div>
+                    <button type="button" onclick="clearSelectedScheduleSong()" class="text-slate-400 hover:text-amber-400 p-1.5 rounded-lg transition" title="Đổi bài khác">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+                    </button>
+                </div>
+
+                <!-- Search Input if no song selected yet -->
+                <div id="scheduleSongSearchContainer">
+                    <label class="block text-xs font-semibold text-slate-300 mb-1.5">1. Chọn bài hát (Tìm kiếm YouTube hoặc dán link):</label>
+                    <div class="relative flex items-center">
+                        <div class="absolute left-3 text-slate-400 pointer-events-none">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </div>
+                        <input 
+                            type="text" 
+                            id="schedSearchInput" 
+                            placeholder="Gõ tên bài hát (vd: Despacito, Lofi chill...)" 
+                            autocomplete="off"
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl pl-9 pr-10 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400 transition"
+                        />
+                        <div id="schedSearchSpinner" class="hidden absolute right-3 text-amber-400 animate-spin">
+                            <i data-lucide="loader-2" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    <!-- Live Search Results list -->
+                    <div id="schedSearchResults" class="max-h-48 overflow-y-auto space-y-1.5 mt-2 pr-1"></div>
+                </div>
+
+                <!-- Schedule Time & Options -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">2. Giờ phát bài (Giờ:Phút):</label>
+                        <input 
+                            type="time" 
+                            id="schedTimeInput" 
+                            required 
+                            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-amber-400 [color-scheme:dark]"
+                        />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Chế độ lặp lại:</label>
+                        <select id="schedRepeatSelect" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-amber-400">
+                            <option value="0">Hôm nay (Phát 1 lần duy nhất)</option>
+                            <option value="1">Hàng ngày (Lặp lại mỗi ngày)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300/90 flex items-start gap-2">
+                    <i data-lucide="info" class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></i>
+                    <span>Tới đúng giờ này, bài hát sẽ tự động nhảy lên vị trí số 1 hàng đợi (ưu tiên trên cả bài của khách) và phát ngay sau khi bài đang hát trên loa kết thúc.</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-2">
+                    <button type="button" onclick="closeScheduleModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition">
+                        Hủy
+                    </button>
+                    <button type="submit" id="btnSaveSchedule" class="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2.5 rounded-xl text-xs shadow-sm transition flex items-center justify-center gap-1.5">
+                        <i data-lucide="check" class="w-4 h-4"></i>
+                        <span>Lưu Lịch Hẹn Giờ</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: PIN/Password Authentication -->
+    <div id="pinModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/95 backdrop-blur-xl">
+        <div class="admin-card rounded-2xl max-w-sm w-full p-6 border border-slate-700 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center mb-4 mx-auto">
+                <i data-lucide="lock" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-lg font-bold text-white mb-1">Xác thực quyền Admin</h3>
+            <p class="text-xs text-slate-400 mb-5">Nhập mật khẩu để truy cập trang quản trị hệ thống</p>
+
+            <form onsubmit="verifyPin(event)">
+                <div class="relative mb-4">
+                    <input 
+                        type="password" 
+                        id="pinInput" 
+                        placeholder="Nhập mật khẩu quản trị..." 
+                        autocomplete="current-password"
+                        class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 pr-11 text-center text-lg tracking-widest text-white focus:outline-none focus:border-rose-500 placeholder:text-slate-600"
+                        required
+                    />
+                    <button type="button" onclick="togglePasswordVisibility('pinInput', 'eyeIconPin')" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition p-1" title="Hiện/ẩn mật khẩu">
+                        <i id="eyeIconPin" data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="pinAuthError" class="hidden text-xs text-rose-400 font-medium mb-3"></div>
+                <button type="submit" id="btnAdminLogin" class="w-full bg-gradient-to-r from-rose-600 to-pink-600 hover:opacity-90 active:scale-95 text-white font-semibold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2">
+                    <i data-lucide="key" class="w-4 h-4"></i>
+                    <span>Đăng nhập Quản Trị</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 pointer-events-none transition-all duration-300 opacity-0 translate-y-4">
+        <div class="admin-card bg-slate-900 text-white text-xs px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 border border-slate-700">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+            <span id="toastMsg"></span>
+        </div>
+    </div>
+
+    <script>
+        function getAdminPin() {
+            return sessionStorage.getItem('xuancf_admin_pin') || localStorage.getItem('xuancf_admin_pin') || '';
+        }
+
+        let isAdminAuthed = (sessionStorage.getItem('xuancf_admin_authed') === 'true' || localStorage.getItem('xuancf_admin_authed') === 'true') && !!getAdminPin();
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                if (icon) icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        // Intercept fetch calls to automatically attach X-Admin-PIN header & handle 401
+        const _nativeFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            if (typeof url === 'string' && url.startsWith('/api/')) {
+                options = options || {};
+                const pin = getAdminPin();
+                if (pin) {
+                    if (options.headers instanceof Headers) {
+                        options.headers.set('X-Admin-PIN', pin);
+                    } else if (typeof options.headers === 'object') {
+                        options.headers['X-Admin-PIN'] = pin;
+                    } else {
+                        options.headers = { 'X-Admin-PIN': pin };
+                    }
+                }
+            }
+            const res = await _nativeFetch.apply(this, [url, options]);
+            if (res.status === 401 && typeof url === 'string' && url.startsWith('/api/admin/') && !url.includes('verify_pin')) {
+                sessionStorage.removeItem('xuancf_admin_authed');
+                sessionStorage.removeItem('xuancf_admin_pin');
+                localStorage.removeItem('xuancf_admin_authed');
+                localStorage.removeItem('xuancf_admin_pin');
+                isAdminAuthed = false;
+                const modal = document.getElementById('pinModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    const inp = document.getElementById('pinInput');
+                    if (inp) { inp.value = ''; inp.focus(); }
+                }
+            }
+            return res;
+        };
+
+        // Socket.IO
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Admin connected to WebSocket');
+            socket.emit('request_queue');
+        });
+
+        socket.on('queue_updated', (data) => {
+            renderAdminQueue(data);
+            if (data.playback_mode) updateModeUI(data.playback_mode);
+        });
+
+        socket.on('playback_mode_changed', (data) => {
+            if (data && data.playback_mode) updateModeUI(data.playback_mode);
+        });
+
+        socket.on('play_song', () => {
+            adminSpeakerIsPlaying = true;
+            renderAdminPlayPauseButton();
+            socket.emit('request_queue');
+        });
+
+        socket.on('speaker_state_sync', (state) => {
+            if (!state) return;
+            if (typeof state.is_playing === 'boolean') {
+                adminSpeakerIsPlaying = state.is_playing;
+                renderAdminPlayPauseButton();
+            }
+            if (state.volume !== undefined && Date.now() > adminVolumeDragUntil) {
+                updateAdminVolumeUI(state.volume);
+            }
+        });
+
+        socket.on('speaker_cmd', (cmd) => {
+            if (!cmd) return;
+            if (cmd.action === 'play') {
+                adminSpeakerIsPlaying = true;
+                renderAdminPlayPauseButton();
+            } else if (cmd.action === 'pause') {
+                adminSpeakerIsPlaying = false;
+                renderAdminPlayPauseButton();
+            } else if (cmd.action === 'volume' && cmd.value !== undefined && Date.now() > adminVolumeDragUntil) {
+                updateAdminVolumeUI(cmd.value);
+            }
+        });
+
+        socket.on('schedule_updated', (data) => {
+            if (data && data.schedules) {
+                adminSchedules = data.schedules;
+                renderSchedules(data.schedules);
+            } else {
+                fetchSchedules();
+            }
+            if (selectedPlaylistSongs && selectedPlaylistSongs.length > 0) {
+                renderPlaylistSongs(selectedPlaylistSongs);
+            }
+        });
+
+        socket.on('active_playlist_changed', () => {
+            if (selectedPlaylistId) fetchPlaylistSongs(selectedPlaylistId);
+            fetchPlaylists();
+        });
+
+        socket.on('schedule_triggered', (data) => {
+            showToast(data.message || `⏰ Đã đến giờ hẹn: ${data.title}`);
+            fetchQueue();
+            fetchSchedules();
+        });
+
+        socket.on('hot_items_updated', (data) => {
+            if (data && Array.isArray(data.items)) {
+                if (Array.isArray(data.categories) && data.categories.length > 0) {
+                    adminMenuCategories = data.categories;
+                }
+                adminHotItems = data.items;
+                syncAdminCategoriesFromItems();
+                renderAdminHotItems(adminHotItems);
+            } else {
+                fetchHotItems();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const modal = document.getElementById('pinModal');
+            if (!isAdminAuthed) {
+                if (modal) modal.classList.remove('hidden');
+                document.getElementById('pinInput')?.focus();
+            } else {
+                if (modal) modal.classList.add('hidden');
+                fetchQueue();
+                fetchPlaylists();
+                fetchSchedules();
+                fetchHotItems();
+            }
+        });
+
+        let currentPlaybackMode = 'auto_priority';
+
+        async function setPlaybackMode(mode) {
+            try {
+                const res = await fetch('/api/settings/playback_mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: mode, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    currentPlaybackMode = mode;
+                    updateModeUI(mode);
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function updateModeUI(mode) {
+            currentPlaybackMode = mode;
+            const btnAuto = document.getElementById('btnModeAuto');
+            const btnPl = document.getElementById('btnModePlaylist');
+            const checkAuto = document.getElementById('checkModeAuto');
+            const checkPl = document.getElementById('checkModePlaylist');
+            const badge = document.getElementById('currentModeBadge');
+            if (!btnAuto || !btnPl) return;
+
+            if (mode === 'auto_priority') {
+                btnAuto.className = "p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-emerald-500/80 bg-emerald-950/40 shadow-lg shadow-emerald-950/30";
+                checkAuto.className = "w-4 h-4 text-emerald-400";
+                checkAuto.classList.remove('hidden');
+
+                btnPl.className = "p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-slate-700 bg-slate-900/60 hover:border-slate-600";
+                checkPl.classList.add('hidden');
+
+                badge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+                badge.textContent = "Bình thường (Ưu tiên khách)";
+            } else {
+                btnPl.className = "p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-indigo-500/80 bg-indigo-950/40 shadow-lg shadow-indigo-950/30";
+                checkPl.className = "w-4 h-4 text-indigo-400";
+                checkPl.classList.remove('hidden');
+
+                btnAuto.className = "p-3 rounded-xl border text-left transition-all relative flex flex-col justify-between border-slate-700 bg-slate-900/60 hover:border-slate-600";
+                checkAuto.classList.add('hidden');
+
+                badge.className = "text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30";
+                badge.textContent = "Cố định: Chỉ phát Playlist Quán";
+            }
+            lucide.createIcons();
+        }
+
+        async function verifyPin(e) {
+            e.preventDefault();
+            const val = document.getElementById('pinInput').value.trim();
+            const errEl = document.getElementById('pinAuthError');
+            if (errEl) errEl.classList.add('hidden');
+            if (!val) return;
+            try {
+                const res = await fetch('/api/admin/verify_pin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pin: val })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    isAdminAuthed = true;
+                    sessionStorage.setItem('xuancf_admin_authed', 'true');
+                    sessionStorage.setItem('xuancf_admin_pin', val);
+                    localStorage.setItem('xuancf_admin_authed', 'true');
+                    localStorage.setItem('xuancf_admin_pin', val);
+                    document.getElementById('pinModal').classList.add('hidden');
+                    showToast('Đăng nhập Quản Trị thành công!');
+                    fetchQueue();
+                    fetchPlaylists();
+                    fetchSchedules();
+                    fetchHotItems();
+                } else {
+                    if (errEl) {
+                        errEl.textContent = data.message || 'Mật khẩu không chính xác! Vui lòng thử lại.';
+                        errEl.classList.remove('hidden');
+                    } else {
+                        alert(data.message || 'Mật khẩu không chính xác!');
+                    }
+                }
+            } catch (err) {
+                if (errEl) {
+                    errEl.textContent = 'Lỗi kết nối máy chủ!';
+                    errEl.classList.remove('hidden');
+                } else {
+                    alert('Lỗi kết nối máy chủ!');
+                }
+            }
+        }
+
+        async function adminLogout() {
+            if (!confirm('Bạn có muốn khóa trang Quản Trị Admin?')) return;
+            try {
+                await fetch('/api/admin/logout', { method: 'POST' });
+            } catch (e) {}
+            sessionStorage.removeItem('xuancf_admin_authed');
+            sessionStorage.removeItem('xuancf_admin_pin');
+            localStorage.removeItem('xuancf_admin_authed');
+            localStorage.removeItem('xuancf_admin_pin');
+            isAdminAuthed = false;
+            const modal = document.getElementById('pinModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const inp = document.getElementById('pinInput');
+                if (inp) { inp.value = ''; inp.focus(); }
+            }
+        }
+
+        async function fetchQueue() {
+            try {
+                const res = await fetch('/api/queue');
+                const data = await res.json();
+                if (data.success) {
+                    renderAdminQueue(data.queue);
+                    if (data.playback_mode) updateModeUI(data.playback_mode);
+                    if (data.speaker_state) {
+                        if (typeof data.speaker_state.is_playing === 'boolean') {
+                            adminSpeakerIsPlaying = data.speaker_state.is_playing;
+                            renderAdminPlayPauseButton();
+                        }
+                        if (data.speaker_state.volume !== undefined && Date.now() > adminVolumeDragUntil) {
+                            updateAdminVolumeUI(data.speaker_state.volume);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        let currentPlayingSong = null;
+
+        function renderAdminQueue(queue) {
+            currentPlayingSong = queue.current || null;
+            // Render Current Playing
+            const npContent = document.getElementById('adminNowPlayingContent');
+            const curActions = document.getElementById('adminCurrentActions');
+            if (queue.current) {
+                npContent.innerHTML = `
+                    <img src="${queue.current.thumbnail || 'https://i.ytimg.com/vi/' + queue.current.youtube_id + '/hqdefault.jpg'}" class="w-16 h-12 rounded-lg object-cover flex-shrink-0 border border-slate-700 shadow" />
+                    <div class="min-w-0 flex-1">
+                        <h4 class="text-xs font-semibold text-white truncate" title="${escapeHtml(queue.current.title)}">${escapeHtml(queue.current.title)}</h4>
+                        <p class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(queue.current.channel || 'YouTube')} • ${queue.current.duration || '--:--'}</p>
+                        <p class="text-[11px] text-emerald-400 font-medium mt-0.5">Order bởi: <strong>${escapeHtml(queue.current.user_name)}</strong></p>
+                    </div>
+                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài này vào Playlist gốc của quán (bài hát yêu thích)" class="flex-shrink-0 p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 transition active:scale-95 flex items-center justify-center">
+                        <i data-lucide="heart" class="w-4 h-4 text-rose-400 fill-rose-400/30"></i>
+                    </button>
+                `;
+                curActions.classList.remove('hidden');
+            } else {
+                npContent.innerHTML = `<div class="text-slate-500 text-xs py-4">Chưa có bài nào đang phát trên loa</div>`;
+                curActions.classList.add('hidden');
+            }
+            lucide.createIcons();
+
+            // Render Waiting Table
+            const tbody = document.getElementById('adminQueueTbody');
+            const badge = document.getElementById('queueCountBadge');
+            const waiting = queue.waiting || [];
+            currentAdminQueueWaiting = waiting;
+            badge.textContent = `${waiting.length} bài`;
+
+            if (waiting.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center py-10 text-slate-500">
+                            <i data-lucide="disc-3" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+                            Hàng đợi hiện đang trống.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                tbody.innerHTML = waiting.map((song, idx) => `
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="px-2.5 sm:px-4 py-3 text-center font-bold text-slate-400 align-top md:align-middle">#${idx + 1}</td>
+                        <td class="px-2.5 sm:px-4 py-3">
+                            <div class="flex items-start sm:items-center gap-2.5 sm:gap-3">
+                                <img src="${song.thumbnail || 'https://i.ytimg.com/vi/' + song.youtube_id + '/hqdefault.jpg'}" class="w-12 h-9 object-cover rounded-md flex-shrink-0 mt-0.5 sm:mt-0" />
+                                <div class="min-w-0 flex-1">
+                                    <span class="font-semibold text-white block line-clamp-1 sm:max-w-xs sm:truncate" title="${escapeHtml(song.title)}">${escapeHtml(song.title)}</span>
+                                    <!-- Mobile compact metadata & actions -->
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-1 md:hidden">
+                                        <span class="bg-purple-950/60 text-purple-300 border border-purple-800/60 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                                            ${escapeHtml(song.user_name)}
+                                        </span>
+                                        <span class="text-slate-400 font-mono text-[10px]">${song.duration || '--:--'}</span>
+                                        <span class="text-slate-500 text-[10px] truncate max-w-[110px]">• ${escapeHtml(song.channel || 'YouTube')}</span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-2 md:hidden">
+                                        <button onclick="adminPlayNow(${song.id})" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                            <i data-lucide="play" class="w-3 h-3 fill-emerald-300"></i>
+                                            <span>Hát ngay</span>
+                                        </button>
+                                        <button onclick="adminPrioritize(${song.id})" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                            <i data-lucide="arrow-up" class="w-3 h-3"></i>
+                                            <span>Lên đầu</span>
+                                        </button>
+                                        <button onclick="openScheduleModalFromQueue(${idx})" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                            <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
+                                            <span>Hẹn giờ</span>
+                                        </button>
+                                        <button onclick="adminDeleteSong(${song.id})" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1 rounded-lg transition">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="hidden md:table-cell px-4 py-3 text-slate-400 truncate max-w-[120px]">${escapeHtml(song.channel || 'YouTube')}</td>
+                        <td class="hidden md:table-cell px-4 py-3 text-slate-400 font-mono">${song.duration || '--:--'}</td>
+                        <td class="hidden md:table-cell px-4 py-3">
+                            <span class="bg-purple-950/60 text-purple-300 border border-purple-800/60 px-2 py-0.5 rounded text-[11px] font-medium">
+                                ${escapeHtml(song.user_name)}
+                            </span>
+                        </td>
+                        <td class="hidden lg:table-cell px-4 py-3 text-slate-400 text-[11px]">${song.created_at ? song.created_at.substring(11, 19) : '--:--'}</td>
+                        <td class="hidden md:table-cell px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="adminPlayNow(${song.id})" title="Phát ngay bài này trên loa" class="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                    <i data-lucide="play" class="w-3 h-3 fill-emerald-300"></i>
+                                    <span>Hát ngay</span>
+                                </button>
+                                <button onclick="adminPrioritize(${song.id})" title="Đẩy bài lên đầu danh sách chờ" class="bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                    <i data-lucide="arrow-up" class="w-3 h-3"></i>
+                                    <span>Lên đầu</span>
+                                </button>
+                                <button onclick="openScheduleModalFromQueue(${idx})" title="Hẹn giờ phát bài này" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                    <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
+                                    <span>Hẹn giờ</span>
+                                </button>
+                                <button onclick="adminDeleteSong(${song.id})" title="Xóa bài này khỏi hàng đợi" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1.5 rounded-lg transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        // Admin Actions
+        async function adminPlayNow(songId) {
+            try {
+                const res = await fetch('/api/admin/play_now', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ song_id: songId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đang phát bài đã chọn trên loa!');
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function adminPrioritize(songId) {
+            try {
+                const res = await fetch('/api/admin/prioritize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ song_id: songId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã đẩy bài lên đầu hàng đợi!');
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function adminDeleteSong(songId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa bài hát này khỏi hàng đợi?')) return;
+            try {
+                const res = await fetch('/api/queue/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ song_id: songId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã xóa bài hát thành công!');
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function confirmClearAll() {
+            if (!confirm('CẢNH BÁO: Bạn có chắc chắn muốn XÓA TOÀN BỘ các bài hát đang chờ trong hàng đợi không?')) return;
+            try {
+                const res = await fetch('/api/queue/clear', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        let adminSpeakerIsPlaying = true;
+        let adminSpeakerVolume = 100;
+        let adminVolumeDragUntil = 0;
+        let adminVolPostTimer = null;
+
+        function renderAdminPlayPauseButton() {
+            const btn = document.getElementById('adminPlayPauseBtn');
+            const badge = document.getElementById('playingBadge');
+            if (!btn) return;
+            if (adminSpeakerIsPlaying) {
+                btn.className = "bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition";
+                btn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5 flex-shrink-0"></i><span class="truncate">Tạm dừng</span>`;
+                if (badge) {
+                    badge.className = "text-[10px] sm:text-[11px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold";
+                    badge.textContent = "ĐANG PHÁT";
+                }
+            } else {
+                btn.className = "bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 py-2.5 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition";
+                btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5 fill-emerald-400 flex-shrink-0"></i><span class="truncate">Tiếp tục</span>`;
+                if (badge) {
+                    badge.className = "text-[10px] sm:text-[11px] bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-full font-bold";
+                    badge.textContent = "TẠM DỪNG";
+                }
+            }
+            lucide.createIcons({ root: btn });
+        }
+
+        function toggleAdminPlayPause() {
+            const nextAction = adminSpeakerIsPlaying ? 'pause' : 'play';
+            adminSpeakerIsPlaying = !adminSpeakerIsPlaying;
+            renderAdminPlayPauseButton();
+            remoteCmd(nextAction);
+        }
+
+        function updateAdminVolumeUI(val) {
+            const v = Math.max(0, Math.min(100, parseInt(val) || 0));
+            adminSpeakerVolume = v;
+            const slider = document.getElementById('adminVolumeSlider');
+            const pct = document.getElementById('adminVolPercent');
+            if (slider) {
+                slider.value = v;
+            }
+            if (pct) pct.textContent = `${v}%`;
+        }
+
+        function onAdminVolumeInput(val) {
+            const v = Math.max(0, Math.min(100, parseInt(val) || 0));
+            adminVolumeDragUntil = Date.now() + 450;
+            updateAdminVolumeUI(v);
+            socket.emit('set_volume_realtime', { volume: v, source: 'admin' });
+            if (!adminVolPostTimer) {
+                adminVolPostTimer = setTimeout(() => {
+                    adminVolPostTimer = null;
+                    fetch('/api/speaker/state', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ volume: adminSpeakerVolume, source: 'admin' })
+                    }).catch(() => {});
+                }, 45);
+            }
+        }
+
+        setInterval(async () => {
+            if (!isAdminAuthed || Date.now() <= adminVolumeDragUntil) return;
+            try {
+                const res = await fetch('/api/speaker/state');
+                const data = await res.json();
+                if (data && data.success && data.speaker_state) {
+                    if (typeof data.speaker_state.is_playing === 'boolean' && data.speaker_state.is_playing !== adminSpeakerIsPlaying) {
+                        adminSpeakerIsPlaying = data.speaker_state.is_playing;
+                        renderAdminPlayPauseButton();
+                    }
+                    if (data.speaker_state.volume !== undefined && Date.now() > adminVolumeDragUntil && Number(data.speaker_state.volume) !== adminSpeakerVolume) {
+                        updateAdminVolumeUI(data.speaker_state.volume);
+                    }
+                }
+            } catch (e) {}
+        }, 1200);
+
+        async function remoteCmd(action, value = null) {
+            try {
+                if (action === 'play') {
+                    adminSpeakerIsPlaying = true;
+                    renderAdminPlayPauseButton();
+                } else if (action === 'pause') {
+                    adminSpeakerIsPlaying = false;
+                    renderAdminPlayPauseButton();
+                } else if (action === 'next') {
+                    adminSpeakerIsPlaying = true;
+                    renderAdminPlayPauseButton();
+                }
+                const res = await fetch('/api/speaker/control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action, value: value, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success && action !== 'volume') {
+                    const labelMap = { play: 'Tiếp tục phát', pause: 'Tạm dừng loa', next: 'Bỏ qua bài' };
+                    showToast(`Đã gửi lệnh "${labelMap[action] || action}" tới loa!`);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function remoteVolume(val) {
+            onAdminVolumeInput(val);
+        }
+
+        // Admin Search & Add Modal with 1.5s live debounce (YouTube style, no search button)
+        let adminResults = [];
+        let adminSearchTimer = null;
+        let lastAdminSearchQuery = '';
+
+        function openAddModal() {
+            document.getElementById('addModal').classList.remove('hidden');
+            const input = document.getElementById('adminSearchInput');
+            input.value = '';
+            document.getElementById('adminSearchResults').innerHTML = '';
+            document.getElementById('adminSearchSpinner').classList.add('hidden');
+            document.getElementById('adminClearSearchBtn').classList.add('hidden');
+            lastAdminSearchQuery = '';
+            clearTimeout(adminSearchTimer);
+            input.focus();
+        }
+
+        function closeAddModal() {
+            clearTimeout(adminSearchTimer);
+            document.getElementById('addModal').classList.add('hidden');
+        }
+
+        function clearAdminSearch() {
+            clearTimeout(adminSearchTimer);
+            const input = document.getElementById('adminSearchInput');
+            input.value = '';
+            document.getElementById('adminSearchResults').innerHTML = '';
+            document.getElementById('adminSearchSpinner').classList.add('hidden');
+            document.getElementById('adminClearSearchBtn').classList.add('hidden');
+            lastAdminSearchQuery = '';
+            adminResults = [];
+            input.focus();
+        }
+
+        async function adminSearch(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            clearTimeout(adminSearchTimer);
+
+            const q = document.getElementById('adminSearchInput').value.trim();
+            if (!q) {
+                clearAdminSearch();
+                return;
+            }
+
+            if (q === lastAdminSearchQuery && adminResults.length > 0) {
+                document.getElementById('adminSearchSpinner')?.classList.add('hidden');
+                return;
+            }
+
+            const spinner = document.getElementById('adminSearchSpinner');
+            if (spinner) spinner.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (data.success) {
+                    lastAdminSearchQuery = q;
+                    adminResults = data.results;
+                    renderAdminSearchResults(data.results);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (spinner) spinner.classList.add('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        document.getElementById('adminSearchInput').addEventListener('input', function() {
+            clearTimeout(adminSearchTimer);
+            const val = this.value.trim();
+            const clearBtn = document.getElementById('adminClearSearchBtn');
+            const spinner = document.getElementById('adminSearchSpinner');
+
+            if (val) {
+                clearBtn.classList.remove('hidden');
+                if (spinner) spinner.classList.remove('hidden');
+
+                adminSearchTimer = setTimeout(() => {
+                    adminSearch(new Event('submit'));
+                }, 450); // 450ms snappy delay
+            } else {
+                clearAdminSearch();
+            }
+        });
+
+        function renderAdminSearchResults(results) {
+            const container = document.getElementById('adminSearchResults');
+            if (!results || results.length === 0) {
+                container.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">Không tìm thấy bài hát.</div>`;
+                return;
+            }
+
+            container.innerHTML = results.map((item, idx) => `
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                    <img src="${item.thumbnail}" class="w-14 h-10 object-cover rounded-lg flex-shrink-0" />
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold text-white truncate">${escapeHtml(item.title)}</p>
+                        <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.channel)} • ${item.duration}</p>
+                    </div>
+                    <div class="flex items-center gap-1.5 flex-shrink-0">
+                        <button onclick="scheduleFromSearchResult(${idx})" title="Hẹn giờ phát bài này" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                            <i data-lucide="clock" class="w-3.5 h-3.5 text-amber-400"></i>
+                            <span>Hẹn giờ</span>
+                        </button>
+                        <button onclick="adminAddSong(${idx})" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center gap-1 transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Thêm</span>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function adminAddSong(index) {
+            const item = adminResults[index];
+            if (!item) return;
+
+            const name = document.getElementById('adminUserNameInput').value.trim() || 'Admin';
+
+            try {
+                const res = await fetch('/api/queue/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: item.id,
+                        title: item.title,
+                        thumbnail: item.thumbnail,
+                        duration: item.duration,
+                        channel: item.channel,
+                        user_name: name,
+                        user_id: 'admin_' + Date.now(),
+                        is_admin: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã thêm bài hát vào hàng đợi!');
+                    closeAddModal();
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function scrollToDefaultPlaylist() {
+            document.getElementById('defaultPlaylistSection')?.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // ----------------------------------------------------
+        // PLAYLIST MANAGEMENT (QUẢN LÝ PLAYLIST QUÁN) LOGIC
+        // ----------------------------------------------------
+        let playlistsData = [];
+        let selectedPlaylistId = null;
+        let playlistSearchResults = [];
+        let playlistSearchTimer = null;
+        let lastPlaylistSearchQuery = '';
+
+        async function fetchPlaylists() {
+            try {
+                const res = await fetch('/api/playlists');
+                const data = await res.json();
+                if (data.success) {
+                    playlistsData = data.playlists || [];
+                    document.getElementById('playlistsTotalBadge').textContent = `${playlistsData.length} playlist`;
+                    renderPlaylistsList();
+
+                    // If no playlist selected yet, select the active one or the first one
+                    if (!selectedPlaylistId && playlistsData.length > 0) {
+                        const activePl = playlistsData.find(p => p.is_active) || playlistsData[0];
+                        selectPlaylist(activePl.id);
+                    } else if (selectedPlaylistId) {
+                        // Refresh selected playlist details
+                        const current = playlistsData.find(p => p.id === selectedPlaylistId);
+                        if (current) {
+                            updateSelectedPlaylistHeader(current);
+                            fetchPlaylistSongs(selectedPlaylistId);
+                        } else if (playlistsData.length > 0) {
+                            selectPlaylist(playlistsData[0].id);
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching playlists:', err);
+            }
+        }
+
+        // ============================================================
+        // LƯU BÀI ĐANG HÁT VÀO PLAYLIST GỐC (BÀI HÁT YÊU THÍCH)
+        // ============================================================
+        async function saveCurrentSongToPlaylist() {
+            if (!currentPlayingSong) {
+                showToast('Hiện chưa có bài hát nào đang phát trên loa!', 'warning');
+                return;
+            }
+
+            // Đảm bảo dữ liệu playlistsData đã được load
+            if (!playlistsData || playlistsData.length === 0) {
+                try {
+                    const res = await fetch('/api/playlists');
+                    const data = await res.json();
+                    if (data.success && data.playlists) {
+                        playlistsData = data.playlists;
+                    }
+                } catch (e) {
+                    console.error('Lỗi tải danh sách playlist:', e);
+                }
+            }
+
+            if (!playlistsData || playlistsData.length === 0) {
+                showToast('Chưa có Playlist gốc nào! Hãy cuộn xuống mục Playlist để tạo mới trước.', 'warning');
+                return;
+            }
+
+            // Nếu chỉ có đúng 1 playlist -> Lưu trực tiếp luôn
+            if (playlistsData.length === 1) {
+                const singlePl = playlistsData[0];
+                executeSaveCurrentToPlaylist(singlePl.id, singlePl.name);
+                return;
+            }
+
+            // Nếu có từ 2 playlist trở lên -> Mở modal cho admin chọn playlist
+            openSaveCurrentToPlaylistModal(currentPlayingSong);
+        }
+
+        function openSaveCurrentToPlaylistModal(song) {
+            const modal = document.getElementById('saveCurrentToPlaylistModal');
+            if (!modal) return;
+
+            // Render thông tin bài hát
+            const thumbEl = document.getElementById('saveCurrentSongThumb');
+            const titleEl = document.getElementById('saveCurrentSongTitle');
+            const metaEl = document.getElementById('saveCurrentSongMeta');
+            const countEl = document.getElementById('saveCurrentPlaylistCount');
+            const optionsEl = document.getElementById('saveCurrentPlaylistOptions');
+
+            if (thumbEl) {
+                thumbEl.src = song.thumbnail || `https://i.ytimg.com/vi/${song.youtube_id}/hqdefault.jpg`;
+            }
+            if (titleEl) {
+                titleEl.textContent = song.title || 'Đang phát';
+                titleEl.title = song.title || '';
+            }
+            if (metaEl) {
+                metaEl.textContent = `${song.channel || 'YouTube'} • ${song.duration || '--:--'}`;
+            }
+            if (countEl) {
+                countEl.textContent = `${playlistsData.length} playlist`;
+            }
+
+            // Render danh sách playlist cho admin click chọn
+            if (optionsEl) {
+                optionsEl.innerHTML = playlistsData.map(p => {
+                    const isActive = Boolean(p.is_active);
+                    return `
+                        <button type="button" onclick="executeSaveCurrentToPlaylist(${p.id}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" class="w-full text-left bg-slate-800/60 hover:bg-rose-500/10 hover:border-rose-500/50 border border-slate-700/80 p-3 rounded-xl transition flex items-center justify-between group active:scale-[0.99]">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-xs text-white group-hover:text-rose-300 flex items-center gap-1.5 truncate">
+                                    <i data-lucide="disc-3" class="w-3.5 h-3.5 text-rose-400 flex-shrink-0"></i>
+                                    <span class="truncate">${escapeHtml(p.name)}</span>
+                                    ${isActive ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded font-bold">Đang phát</span>' : ''}
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(p.description || 'Chưa có mô tả')} • <span class="text-slate-300 font-semibold">${p.song_count || 0} bài</span></p>
+                            </div>
+                            <div class="flex-shrink-0 text-slate-400 group-hover:text-rose-300 flex items-center gap-1 text-xs font-semibold">
+                                <span>Thêm vào</span>
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeSaveCurrentToPlaylistModal() {
+            const modal = document.getElementById('saveCurrentToPlaylistModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function executeSaveCurrentToPlaylist(playlistId, playlistName) {
+            if (!currentPlayingSong) {
+                showToast('Hiện không có bài hát nào đang phát!', 'warning');
+                return;
+            }
+
+            showToast(`Đang lưu vào Playlist "${playlistName || ''}"...`);
+
+            try {
+                const res = await fetch('/api/playlists/save_current', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_id: playlistId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || `Đã lưu vào Playlist "${playlistName}" thành công!`);
+                    closeSaveCurrentToPlaylistModal();
+
+                    if (data.playlists) {
+                        playlistsData = data.playlists;
+                        renderPlaylistsList();
+                    }
+
+                    // Nếu admin đang xem đúng playlist này thì update luôn danh sách bài
+                    if (selectedPlaylistId && String(selectedPlaylistId) === String(playlistId)) {
+                        if (data.songs) {
+                            selectedPlaylistSongs = data.songs;
+                            renderPlaylistSongs(data.songs);
+                        } else {
+                            fetchPlaylistSongs(selectedPlaylistId);
+                        }
+                    }
+                } else {
+                    showToast(data.message || 'Lỗi khi lưu bài vào Playlist!', 'error');
+                }
+            } catch (err) {
+                console.error('Lỗi executeSaveCurrentToPlaylist:', err);
+                showToast('Không thể kết nối đến máy chủ!', 'error');
+            }
+        }
+
+        function renderPlaylistsList() {
+            const container = document.getElementById('playlistsListContainer');
+            if (!playlistsData || playlistsData.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-xs text-slate-500">
+                        Chưa có playlist nào. Hãy bấm nút "+ Tạo Playlist Mới" phía trên!
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = playlistsData.map(p => {
+                const isSelected = (p.id === selectedPlaylistId);
+                const isActive = p.is_active;
+
+                return `
+                    <div onclick="selectPlaylist(${p.id})" class="cursor-pointer p-3 rounded-xl border transition-all ${isSelected ? 'bg-indigo-950/60 border-indigo-500 shadow-md shadow-indigo-950/50' : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'}">
+                        <div class="flex items-center justify-between mb-1">
+                            <h4 class="font-bold text-xs text-white truncate flex items-center gap-1.5">
+                                <i data-lucide="${isActive ? 'radio' : 'music-2'}" class="w-3.5 h-3.5 ${isActive ? 'text-emerald-400' : 'text-slate-400'}"></i>
+                                ${escapeHtml(p.name)}
+                            </h4>
+                            <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-full font-mono">${p.song_count || 0} bài</span>
+                        </div>
+
+                        ${p.description ? `<p class="text-[11px] text-slate-400 line-clamp-1 mb-2">${escapeHtml(p.description)}</p>` : ''}
+
+                        <div class="flex items-center justify-between pt-1 border-t border-slate-800/80 mt-1">
+                            <div>
+                                ${isActive ? `
+                                    <span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-600/40 px-2 py-0.5 rounded-md">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                        Đang phát trên loa
+                                    </span>
+                                ` : `
+                                    <button onclick="event.stopPropagation(); adminActivatePlaylist(${p.id})" class="text-[10px] text-indigo-300 hover:text-white bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-700/60 px-2.5 py-0.5 rounded-md transition flex items-center gap-1">
+                                        <i data-lucide="play" class="w-2.5 h-2.5 fill-indigo-300"></i>
+                                        <span>Chọn phát playlist này</span>
+                                    </button>
+                                `}
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                <button onclick="event.stopPropagation(); adminShufflePlaylist(${p.id})" title="Trộn ngẫu nhiên vị trí bài hát trong playlist này" class="text-slate-400 hover:text-amber-400 p-1 transition flex items-center gap-1 text-[10px]">
+                                    <i data-lucide="shuffle" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="event.stopPropagation(); adminDeletePlaylist(${p.id})" title="Xóa playlist này" class="text-slate-500 hover:text-rose-400 p-1 transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function selectPlaylist(id) {
+            selectedPlaylistId = id;
+            const pl = playlistsData.find(p => p.id === id);
+            if (!pl) return;
+
+            renderPlaylistsList();
+            updateSelectedPlaylistHeader(pl);
+            fetchPlaylistSongs(id);
+        }
+
+        function updateSelectedPlaylistHeader(pl) {
+            document.getElementById('selectedPlaylistTitle').innerHTML = `
+                <span>${escapeHtml(pl.name)}</span>
+                ${pl.is_active ? `
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-bold flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        Đang phát
+                    </span>
+                ` : `
+                    <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md">Chưa kích hoạt</span>
+                `}
+            `;
+            document.getElementById('selectedPlaylistDesc').textContent = pl.description || 'Chưa có mô tả';
+
+            // Show action buttons
+            const btnActive = document.getElementById('btnActiveThisPlaylist');
+            const btnShuffle = document.getElementById('btnShufflePlaylist');
+            const btnAdd = document.getElementById('btnAddSongToPlaylist');
+
+            if (pl.is_active) {
+                btnActive.classList.add('hidden');
+            } else {
+                btnActive.classList.remove('hidden');
+            }
+            if (btnShuffle) btnShuffle.classList.remove('hidden');
+            btnAdd.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        let selectedPlaylistSongs = [];
+        async function fetchPlaylistSongs(playlistId) {
+            const tbody = document.getElementById('selectedPlaylistSongsTbody');
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500">Đang tải danh sách bài hát...</td></tr>`;
+
+            try {
+                const res = await fetch(`/api/playlists/${playlistId}/songs`);
+                const data = await res.json();
+                if (data.success) {
+                    selectedPlaylistSongs = data.songs || [];
+                    renderPlaylistSongs(selectedPlaylistSongs);
+                }
+            } catch (err) {
+                console.error(err);
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-rose-400">Lỗi khi tải bài hát!</td></tr>`;
+            }
+        }
+
+        function renderPlaylistSongs(songs) {
+            const tbody = document.getElementById('selectedPlaylistSongsTbody');
+            if (songs.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center py-12 text-slate-500">
+                            Playlist này chưa có bài hát nào.<br>
+                            <span class="text-indigo-400 font-medium">Bấm nút "+ Thêm bài hát" góc trên bên phải để thêm bài từ YouTube!</span>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = songs.map((s, idx) => {
+                const activeSched = (adminSchedules || []).find(sch => sch.youtube_id === s.youtube_id && sch.status !== 'cancelled');
+                const schedBadge = activeSched 
+                    ? `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold flex items-center gap-1 w-max" title="Đang được hẹn giờ phát lúc ${activeSched.scheduled_time}"><i data-lucide="clock" class="w-3 h-3 text-amber-400"></i> ${escapeHtml(activeSched.scheduled_time)}</span>`
+                    : '';
+
+                return `
+                <tr class="hover:bg-slate-900/60 transition">
+                    <td class="px-2 sm:px-3 py-2.5 text-center font-bold text-slate-500 align-top sm:align-middle">#${idx + 1}</td>
+                    <td class="px-2 sm:px-3 py-2.5">
+                        <div class="flex items-start sm:items-center gap-2.5">
+                            <img src="${s.thumbnail || 'https://i.ytimg.com/vi/' + s.youtube_id + '/hqdefault.jpg'}" class="w-12 h-9 object-cover rounded-md flex-shrink-0 mt-0.5 sm:mt-0" />
+                            <div class="min-w-0 flex-1">
+                                <span class="font-semibold text-white line-clamp-1 sm:truncate sm:max-w-xs block" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</span>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-0.5 sm:hidden text-[10px] text-slate-400">
+                                    <span class="font-mono">${s.duration || '--:--'}</span>
+                                    <span class="truncate max-w-[120px]">• ${escapeHtml(s.channel || 'YouTube')}</span>
+                                </div>
+                                ${schedBadge ? `<div class="mt-1">${schedBadge}</div>` : ''}
+                                <div class="flex flex-wrap items-center gap-1.5 mt-2 sm:hidden">
+                                    <button onclick="adminPlaySongNowFromPlaylist(${idx})" class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                        <i data-lucide="play" class="w-3 h-3 fill-indigo-300"></i>
+                                        <span>Phát ngay</span>
+                                    </button>
+                                    <button onclick="adminScheduleSongFromPlaylist(${idx})" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                        <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
+                                        <span>Hẹn giờ</span>
+                                    </button>
+                                    <button onclick="adminDeleteSongFromPlaylist(${s.id})" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1 rounded-lg transition">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="hidden sm:table-cell px-3 py-2.5 text-slate-400 truncate max-w-[120px]">${escapeHtml(s.channel || 'YouTube')}</td>
+                    <td class="hidden sm:table-cell px-3 py-2.5 text-slate-400 font-mono">${s.duration || '--:--'}</td>
+                    <td class="hidden sm:table-cell px-3 py-2.5 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button onclick="adminScheduleSongFromPlaylist(${idx})" title="Hẹn giờ phát bài này" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition text-xs font-semibold">
+                                <i data-lucide="clock" class="w-3 h-3 text-amber-400"></i>
+                                <span>Hẹn giờ</span>
+                            </button>
+                            <button onclick="adminPlaySongNowFromPlaylist(${idx})" title="Phát ngay bài này trên loa" class="bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                <i data-lucide="play" class="w-3 h-3 fill-indigo-300"></i>
+                                <span>Phát ngay</span>
+                            </button>
+                            <button onclick="adminDeleteSongFromPlaylist(${s.id})" title="Xóa bài khỏi playlist này (tự động xóa cả lịch hẹn giờ)" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1.5 rounded-lg transition">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;}).join('');
+            lucide.createIcons();
+        }
+
+        async function adminActivatePlaylist(playlistId) {
+            try {
+                const res = await fetch('/api/playlists/activate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_id: playlistId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    playlistsData = data.playlists;
+                    renderPlaylistsList();
+                    const pl = playlistsData.find(p => p.id === selectedPlaylistId);
+                    if (pl) updateSelectedPlaylistHeader(pl);
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function adminActivateCurrentPlaylist() {
+            if (selectedPlaylistId) {
+                adminActivatePlaylist(selectedPlaylistId);
+            }
+        }
+
+        async function adminShufflePlaylist(playlistId) {
+            if (!playlistId) return;
+            try {
+                const res = await fetch(`/api/playlists/${playlistId}/shuffle`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`🔀 ${data.message}`);
+                    if (selectedPlaylistId === playlistId) {
+                        selectedPlaylistSongs = data.songs || [];
+                        renderPlaylistSongs(selectedPlaylistSongs);
+                    } else {
+                        selectPlaylist(playlistId);
+                    }
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function adminShuffleCurrentPlaylist() {
+            if (selectedPlaylistId) {
+                adminShufflePlaylist(selectedPlaylistId);
+            }
+        }
+
+        async function adminDeletePlaylist(playlistId) {
+            const pl = playlistsData.find(p => p.id === playlistId);
+            const name = pl ? pl.name : `#${playlistId}`;
+            if (!confirm(`Bạn có chắc chắn muốn XÓA Playlist '${name}' cùng toàn bộ bài hát trong đó?`)) return;
+            try {
+                const res = await fetch('/api/playlists/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_id: playlistId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    selectedPlaylistId = null;
+                    fetchPlaylists();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function adminPlaySongNowFromPlaylist(index) {
+            const item = selectedPlaylistSongs[index];
+            if (!item) return;
+
+            const pl = playlistsData.find(p => p.id === selectedPlaylistId);
+            const plName = pl ? pl.name : 'Quán';
+
+            try {
+                const res = await fetch('/api/queue/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: item.youtube_id,
+                        title: item.title,
+                        thumbnail: item.thumbnail,
+                        duration: item.duration,
+                        channel: item.channel,
+                        user_name: `Playlist: ${plName}`,
+                        user_id: 'admin_play',
+                        is_admin: true,
+                        play_now: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đang phát bài này trên loa!');
+                    fetchQueue();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function adminScheduleSongFromPlaylist(idx) {
+            const song = selectedPlaylistSongs[idx];
+            if (!song) return;
+            openScheduleModalWithSong(song);
+        }
+
+        async function adminDeleteSongFromPlaylist(songId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa bài hát này khỏi playlist? (Lịch hẹn giờ của bài này cũng sẽ đồng bộ xóa)')) return;
+            try {
+                const res = await fetch('/api/playlists/songs/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        song_id: songId,
+                        playlist_id: selectedPlaylistId,
+                        is_admin: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.cancelled_schedules > 0) {
+                        showToast(`Đã xóa bài khỏi playlist & đồng bộ hủy ${data.cancelled_schedules} lịch hẹn giờ!`);
+                    } else {
+                        showToast('Đã xóa bài hát khỏi playlist!');
+                    }
+                    selectedPlaylistSongs = data.songs;
+                    renderPlaylistSongs(data.songs);
+                    playlistsData = data.playlists;
+                    renderPlaylistsList();
+                    if (data.schedules) {
+                        adminSchedules = data.schedules;
+                        renderSchedules(data.schedules);
+                    } else {
+                        fetchSchedules();
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Modals for Playlist
+        function openCreatePlaylistModal() {
+            document.getElementById('createPlaylistModal').classList.remove('hidden');
+            document.getElementById('newPlaylistName').value = '';
+            document.getElementById('newPlaylistDesc').value = '';
+            document.getElementById('newPlaylistName').focus();
+        }
+
+        function closeCreatePlaylistModal() {
+            document.getElementById('createPlaylistModal').classList.add('hidden');
+        }
+
+        async function handleCreatePlaylist(e) {
+            e.preventDefault();
+            const name = document.getElementById('newPlaylistName').value.trim();
+            const desc = document.getElementById('newPlaylistDesc').value.trim();
+            if (!name) return;
+
+            try {
+                const res = await fetch('/api/playlists/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, description: desc, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    closeCreatePlaylistModal();
+                    playlistsData = data.playlists;
+                    renderPlaylistsList();
+                    if (data.playlist) {
+                        selectPlaylist(data.playlist.id);
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openAddSongToPlaylistModal() {
+            const pl = playlistsData.find(p => p.id === selectedPlaylistId);
+            if (!pl) return;
+            document.getElementById('modalPlaylistTargetName').textContent = pl.name;
+            document.getElementById('addSongToPlaylistModal').classList.remove('hidden');
+            const input = document.getElementById('searchForPlaylistInput');
+            input.value = '';
+            document.getElementById('searchForPlaylistResults').innerHTML = '';
+            document.getElementById('playlistSearchSpinner').classList.add('hidden');
+            document.getElementById('playlistClearSearchBtn').classList.add('hidden');
+            lastPlaylistSearchQuery = '';
+            clearTimeout(playlistSearchTimer);
+            input.focus();
+        }
+
+        function closeAddSongToPlaylistModal() {
+            clearTimeout(playlistSearchTimer);
+            document.getElementById('addSongToPlaylistModal').classList.add('hidden');
+        }
+
+        function clearPlaylistSearch() {
+            clearTimeout(playlistSearchTimer);
+            const input = document.getElementById('searchForPlaylistInput');
+            input.value = '';
+            document.getElementById('searchForPlaylistResults').innerHTML = '';
+            document.getElementById('playlistSearchSpinner').classList.add('hidden');
+            document.getElementById('playlistClearSearchBtn').classList.add('hidden');
+            lastPlaylistSearchQuery = '';
+            playlistSearchResults = [];
+            input.focus();
+        }
+
+        async function handleSearchForPlaylist(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            clearTimeout(playlistSearchTimer);
+
+            const q = document.getElementById('searchForPlaylistInput').value.trim();
+            if (!q) {
+                clearPlaylistSearch();
+                return;
+            }
+
+            if (q === lastPlaylistSearchQuery && playlistSearchResults.length > 0) {
+                document.getElementById('playlistSearchSpinner')?.classList.add('hidden');
+                return;
+            }
+
+            const spinner = document.getElementById('playlistSearchSpinner');
+            if (spinner) spinner.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (data.success) {
+                    lastPlaylistSearchQuery = q;
+                    playlistSearchResults = data.results || [];
+                    renderSearchForPlaylistResults(playlistSearchResults);
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                if (spinner) spinner.classList.add('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        document.getElementById('searchForPlaylistInput').addEventListener('input', function() {
+            clearTimeout(playlistSearchTimer);
+            const val = this.value.trim();
+            const clearBtn = document.getElementById('playlistClearSearchBtn');
+            const spinner = document.getElementById('playlistSearchSpinner');
+
+            if (val) {
+                clearBtn.classList.remove('hidden');
+                if (spinner) spinner.classList.remove('hidden');
+
+                playlistSearchTimer = setTimeout(() => {
+                    handleSearchForPlaylist(new Event('submit'));
+                }, 450); // 450ms snappy delay
+            } else {
+                clearPlaylistSearch();
+            }
+        });
+
+        function renderSearchForPlaylistResults(results) {
+            const container = document.getElementById('searchForPlaylistResults');
+            if (!results || results.length === 0) {
+                container.innerHTML = `<div class="p-3 text-center text-xs text-slate-500">Không tìm thấy bài hát. Thử từ khóa khác nhé!</div>`;
+                return;
+            }
+
+            container.innerHTML = results.map((item, idx) => `
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3">
+                    <img src="${item.thumbnail}" class="w-14 h-10 object-cover rounded-lg flex-shrink-0" />
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold text-white truncate">${escapeHtml(item.title)}</p>
+                        <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.channel)} • ${item.duration}</p>
+                    </div>
+                    <button onclick="adminAddSongToCurrentPlaylist(${idx})" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Thêm</span>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function adminAddSongToCurrentPlaylist(index) {
+            const item = playlistSearchResults[index];
+            if (!item || !selectedPlaylistId) return;
+
+            try {
+                const res = await fetch(`/api/playlists/${selectedPlaylistId}/songs/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: item.id,
+                        title: item.title,
+                        thumbnail: item.thumbnail,
+                        duration: item.duration,
+                        channel: item.channel,
+                        is_admin: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã thêm bài hát vào playlist!');
+                    selectedPlaylistSongs = data.songs;
+                    renderPlaylistSongs(data.songs);
+                    playlistsData = data.playlists;
+                    renderPlaylistsList();
+                    closeAddSongToPlaylistModal();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ----------------------------------------------------
+        // LOCAL MP3 MANAGEMENT FUNCTIONS
+        // ----------------------------------------------------
+        function switchPlaylistAddTab(tab) {
+            const btnYt = document.getElementById('tabBtnYoutube');
+            const btnMp3 = document.getElementById('tabBtnMp3');
+            const paneYt = document.getElementById('paneAddYoutube');
+            const paneMp3 = document.getElementById('paneAddMp3');
+
+            if (tab === 'yt') {
+                btnYt.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-indigo-600 transition flex items-center justify-center gap-1.5";
+                btnMp3.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+                paneYt.classList.remove('hidden');
+                paneMp3.classList.add('hidden');
+            } else {
+                btnMp3.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-white bg-emerald-600 transition flex items-center justify-center gap-1.5";
+                btnYt.className = "flex-1 py-1.5 px-3 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center justify-center gap-1.5";
+                paneMp3.classList.remove('hidden');
+                paneYt.classList.add('hidden');
+                fetchLocalMp3s();
+            }
+            lucide.createIcons();
+        }
+
+        let localMp3Files = [];
+        async function fetchLocalMp3s() {
+            const container = document.getElementById('localMp3ListContainer');
+            container.innerHTML = `<div class="text-center py-6 text-slate-500 text-xs">Đang tải danh sách file MP3...</div>`;
+
+            try {
+                const res = await fetch('/api/local_music');
+                const data = await res.json();
+                if (data.success) {
+                    localMp3Files = data.files || [];
+                    renderLocalMp3List(localMp3Files);
+                }
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-6 text-rose-400 text-xs">Lỗi khi tải danh sách file!</div>`;
+            }
+        }
+
+        function renderLocalMp3List(files) {
+            const container = document.getElementById('localMp3ListContainer');
+            if (!files || files.length === 0) {
+                container.innerHTML = `
+                    <div class="p-6 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-xl">
+                        Chưa có file MP3 nào được tải lên máy chủ quán.<br>
+                        <button onclick="openUploadMp3Modal()" class="mt-2 text-emerald-400 hover:text-emerald-300 font-semibold underline">Bấm vào đây để tải bài hát từ máy tính lên ngay</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = files.map((file, idx) => `
+                <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between gap-3 hover:border-slate-700 transition">
+                    <div class="w-10 h-10 rounded-lg bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                        <i data-lucide="music" class="w-5 h-5"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold text-white truncate" title="${escapeHtml(file.title)}">${escapeHtml(file.title)}</p>
+                        <p class="text-[11px] text-slate-400 font-mono truncate">${file.filename} • ${file.size_mb} MB</p>
+                    </div>
+                    <button onclick="addLocalMp3ByIndex(${idx})" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1 transition">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                        <span>Thêm</span>
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addLocalMp3ByIndex(idx) {
+            const file = localMp3Files[idx];
+            if (!file) return;
+            addLocalMp3ToCurrentPlaylist(file.file_url, file.title);
+        }
+
+        async function addLocalMp3ToCurrentPlaylist(fileUrl, title) {
+            if (!selectedPlaylistId) return;
+
+            try {
+                const res = await fetch(`/api/playlists/${selectedPlaylistId}/songs/add`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: fileUrl,
+                        title: title,
+                        thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=120&h=90&fit=crop',
+                        duration: 'MP3',
+                        channel: 'Nhạc Quán (MP3)',
+                        is_admin: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Đã thêm bài MP3 vào playlist!');
+                    selectedPlaylistSongs = data.songs;
+                    renderPlaylistSongs(data.songs);
+                    playlistsData = data.playlists;
+                    renderPlaylistsList();
+                    closeAddSongToPlaylistModal();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function openUploadMp3Modal() {
+            const modal = document.getElementById('uploadMp3Modal');
+            const select = document.getElementById('uploadTargetPlaylistSelect');
+            select.innerHTML = `<option value="">-- Chỉ lưu vào kho (chưa gắn vào playlist) --</option>`;
+            
+            playlistsData.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `Playlist: ${p.name}`;
+                if (selectedPlaylistId && p.id === selectedPlaylistId) {
+                    opt.selected = true;
+                }
+                select.appendChild(opt);
+            });
+
+            document.getElementById('mp3FileInput').value = '';
+            document.getElementById('uploadProgressContainer').classList.add('hidden');
+            document.getElementById('btnSubmitUploadMp3').disabled = false;
+            modal.classList.remove('hidden');
+        }
+
+        function closeUploadMp3Modal() {
+            document.getElementById('uploadMp3Modal').classList.add('hidden');
+        }
+
+        async function handleUploadMp3(e) {
+            e.preventDefault();
+            const fileInput = document.getElementById('mp3FileInput');
+            if (!fileInput.files || fileInput.files.length === 0) {
+                alert('Vui lòng chọn file âm thanh!');
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const plSelect = document.getElementById('uploadTargetPlaylistSelect');
+            const playlistId = plSelect.value;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('is_admin', 'true');
+            if (playlistId) formData.append('playlist_id', playlistId);
+
+            const progress = document.getElementById('uploadProgressContainer');
+            const btnSubmit = document.getElementById('btnSubmitUploadMp3');
+            progress.classList.remove('hidden');
+            btnSubmit.disabled = true;
+
+            try {
+                const res = await fetch('/api/upload/mp3', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    closeUploadMp3Modal();
+                    fetchPlaylists();
+                    if (playlistId && selectedPlaylistId && String(playlistId) === String(selectedPlaylistId)) {
+                        fetchPlaylistSongs(selectedPlaylistId);
+                    }
+                    if (!document.getElementById('paneAddMp3').classList.contains('hidden')) {
+                        fetchLocalMp3s();
+                    }
+                } else {
+                    alert(data.message || 'Lỗi khi tải file!');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Có lỗi xảy ra khi tải file lên máy chủ!');
+            } finally {
+                progress.classList.add('hidden');
+                btnSubmit.disabled = false;
+            }
+        }
+
+        // ----------------------------------------------------
+        // SCHEDULED PLAYBACK MANAGEMENT (HẸN GIỜ PHÁT NHẠC)
+        // ----------------------------------------------------
+        let adminSchedules = [];
+        let schedSearchTimer = null;
+        let currentScheduleSong = null;
+        let currentAdminQueueWaiting = [];
+
+        async function fetchSchedules() {
+            try {
+                const res = await fetch('/api/admin/schedules');
+                const data = await res.json();
+                if (data.success) {
+                    adminSchedules = data.schedules || [];
+                    renderSchedules(adminSchedules);
+                }
+            } catch (err) {
+                console.error('Error fetching schedules:', err);
+            }
+        }
+
+        function renderSchedules(schedules) {
+            const tbody = document.getElementById('adminScheduleTbody');
+            const badge = document.getElementById('schedulesCountBadge');
+            if (!tbody) return;
+
+            const count = schedules ? schedules.length : 0;
+            if (badge) badge.textContent = `${count} lịch`;
+
+            if (!schedules || schedules.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-10 text-slate-500">
+                            <i data-lucide="clock-alert" class="w-7 h-7 mx-auto mb-2 opacity-40"></i>
+                            Chưa có bài hát nào được hẹn giờ. Bấm "Đặt Lịch Hẹn Giờ Mới" để lên lịch phát!
+                        </td>
+                    </tr>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            tbody.innerHTML = schedules.map((item, idx) => {
+                const isTriggered = (item.status === 'triggered');
+                const isDaily = !!item.repeat_daily;
+                const statusBadge = isTriggered 
+                    ? `<span class="bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 w-max"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>Đã kích hoạt</span>`
+                    : `<span class="bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded text-[11px] font-medium flex items-center gap-1 w-max"><span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Đang chờ tới giờ</span>`;
+
+                const repeatBadge = isDaily
+                    ? `<span class="bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded text-[11px] font-medium">Hàng ngày</span>`
+                    : `<span class="bg-slate-800 text-slate-300 border border-slate-700 px-2 py-0.5 rounded text-[11px]">Hôm nay (${item.scheduled_date || '1 lần'})</span>`;
+
+                return `
+                    <tr class="hover:bg-slate-900/50 transition">
+                        <td class="px-2.5 sm:px-4 py-3 text-center font-bold text-slate-500 align-top md:align-middle">#${idx + 1}</td>
+                        <td class="px-2 sm:px-4 py-3 font-mono font-bold text-amber-400 text-xs sm:text-sm align-top md:align-middle">${escapeHtml(item.scheduled_time)}</td>
+                        <td class="px-2.5 sm:px-4 py-3">
+                            <div class="flex items-start sm:items-center gap-2.5">
+                                <img src="${item.thumbnail || 'https://i.ytimg.com/vi/' + item.youtube_id + '/hqdefault.jpg'}" 
+                                     class="w-10 h-7 object-cover rounded shadow flex-shrink-0 mt-0.5 sm:mt-0" />
+                                <div class="min-w-0 flex-1">
+                                    <span class="font-semibold text-white line-clamp-1 sm:max-w-xs sm:truncate block" title="${escapeHtml(item.title)}">${escapeHtml(item.title)}</span>
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-1 md:hidden">
+                                        ${repeatBadge}
+                                        ${statusBadge}
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-1.5 mt-2 md:hidden">
+                                        <button onclick="triggerScheduleNow(${item.id})" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2 py-1 rounded-lg flex items-center gap-1 text-[11px] font-semibold transition">
+                                            <i data-lucide="zap" class="w-3 h-3 text-amber-400"></i>
+                                            <span>Kích hoạt ngay</span>
+                                        </button>
+                                        <button onclick="deleteSchedule(${item.id})" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1 rounded-lg transition">
+                                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="hidden md:table-cell px-4 py-3 text-slate-400 truncate max-w-[120px]">${escapeHtml(item.channel || 'YouTube')}</td>
+                        <td class="hidden md:table-cell px-4 py-3 text-slate-400 font-mono">${item.duration || '--:--'}</td>
+                        <td class="hidden md:table-cell px-4 py-3">${repeatBadge}</td>
+                        <td class="hidden md:table-cell px-4 py-3">${statusBadge}</td>
+                        <td class="hidden md:table-cell px-4 py-3 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="triggerScheduleNow(${item.id})" title="Thử kích hoạt ngay lập tức (không cần đợi tới giờ)" class="bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 transition">
+                                    <i data-lucide="zap" class="w-3 h-3 text-amber-400"></i>
+                                    <span>Kích hoạt ngay</span>
+                                </button>
+                                <button onclick="deleteSchedule(${item.id})" title="Xóa lịch hẹn giờ này" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 p-1.5 rounded-lg transition">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function scrollToSchedules() {
+            const el = document.getElementById('scheduleSection');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function openScheduleModal(prefillSong = null) {
+            document.getElementById('scheduleModal').classList.remove('hidden');
+            const searchContainer = document.getElementById('scheduleSongSearchContainer');
+            const selectedCard = document.getElementById('scheduleSongSelectedCard');
+            const searchInput = document.getElementById('schedSearchInput');
+            const resultsContainer = document.getElementById('schedSearchResults');
+            resultsContainer.innerHTML = '';
+
+            const now = new Date();
+            const curH = String(now.getHours()).padStart(2, '0');
+            const curM = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('schedTimeInput').value = `${curH}:${curM}`;
+
+            if (prefillSong) {
+                selectSongForSchedule(prefillSong);
+            } else {
+                currentScheduleSong = null;
+                selectedCard.classList.add('hidden');
+                searchContainer.classList.remove('hidden');
+                searchInput.value = '';
+                searchInput.focus();
+            }
+            lucide.createIcons();
+        }
+
+        function openScheduleModalWithSong(song) {
+            openScheduleModal({
+                id: song.youtube_id || song.id,
+                youtube_id: song.youtube_id,
+                title: song.title,
+                thumbnail: song.thumbnail,
+                duration: song.duration,
+                channel: song.channel
+            });
+        }
+
+        function openScheduleModalFromQueue(idx) {
+            const song = currentAdminQueueWaiting[idx];
+            if (!song) return;
+            openScheduleModalWithSong(song);
+        }
+
+        function scheduleFromSearchResult(idx) {
+            const song = adminResults[idx];
+            if (!song) return;
+            closeAddModal();
+            openScheduleModalWithSong(song);
+        }
+
+        function selectSongForSchedule(song) {
+            currentScheduleSong = song;
+            document.getElementById('scheduleSongSearchContainer').classList.add('hidden');
+            const selectedCard = document.getElementById('scheduleSongSelectedCard');
+            selectedCard.classList.remove('hidden');
+
+            document.getElementById('schedSongThumb').src = song.thumbnail || `https://i.ytimg.com/vi/${song.youtube_id || song.id}/hqdefault.jpg`;
+            document.getElementById('schedSongTitle').textContent = song.title;
+            document.getElementById('schedSongMeta').textContent = `${song.channel || 'YouTube'} • ${song.duration || '--:--'}`;
+            document.getElementById('schedTimeInput').focus();
+            lucide.createIcons();
+        }
+
+        function clearSelectedScheduleSong() {
+            currentScheduleSong = null;
+            document.getElementById('scheduleSongSelectedCard').classList.add('hidden');
+            const container = document.getElementById('scheduleSongSearchContainer');
+            container.classList.remove('hidden');
+            const input = document.getElementById('schedSearchInput');
+            input.value = '';
+            document.getElementById('schedSearchResults').innerHTML = '';
+            input.focus();
+        }
+
+        function closeScheduleModal() {
+            document.getElementById('scheduleModal').classList.add('hidden');
+            clearTimeout(schedSearchTimer);
+        }
+
+        // Live search inside schedule modal
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('schedSearchInput');
+            if (input) {
+                input.addEventListener('input', function() {
+                    clearTimeout(schedSearchTimer);
+                    const val = this.value.trim();
+                    const spinner = document.getElementById('schedSearchSpinner');
+                    if (val) {
+                        if (spinner) spinner.classList.remove('hidden');
+                        schedSearchTimer = setTimeout(() => {
+                            executeSchedSearch(val);
+                        }, 400);
+                    } else {
+                        if (spinner) spinner.classList.add('hidden');
+                        document.getElementById('schedSearchResults').innerHTML = '';
+                    }
+                });
+            }
+        });
+
+        let schedSearchResults = [];
+        function selectSchedSongByIdx(idx) {
+            const item = schedSearchResults[idx];
+            if (item) selectSongForSchedule(item);
+        }
+
+        async function executeSchedSearch(q) {
+            const spinner = document.getElementById('schedSearchSpinner');
+            const container = document.getElementById('schedSearchResults');
+            try {
+                const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+                const data = await res.json();
+                if (data.success && data.results && data.results.length > 0) {
+                    schedSearchResults = data.results;
+                    container.innerHTML = data.results.map((item, idx) => `
+                        <div onclick="selectSchedSongByIdx(${idx})" class="bg-slate-900/90 hover:bg-slate-800 p-2 rounded-xl border border-slate-800 flex items-center justify-between gap-2.5 cursor-pointer transition">
+                            <img src="${item.thumbnail}" class="w-12 h-9 object-cover rounded shadow flex-shrink-0" />
+                            <div class="min-w-0 flex-1">
+                                <p class="text-xs font-semibold text-white truncate">${escapeHtml(item.title)}</p>
+                                <p class="text-[11px] text-slate-400 truncate">${escapeHtml(item.channel)} • ${item.duration}</p>
+                            </div>
+                            <span class="text-amber-400 text-xs font-semibold px-2 py-1 bg-amber-500/10 rounded-lg">Chọn</span>
+                        </div>
+                    `).join('');
+                } else {
+                    schedSearchResults = [];
+                    container.innerHTML = `<div class="p-2.5 text-center text-xs text-slate-500">Không tìm thấy bài hát phù hợp.</div>`;
+                }
+            } catch (e) {
+                console.error(e);
+            } finally {
+                if (spinner) spinner.classList.add('hidden');
+                lucide.createIcons();
+            }
+        }
+
+        async function handleSaveSchedule(e) {
+            e.preventDefault();
+            if (!currentScheduleSong) {
+                alert('Vui lòng chọn bài hát để hẹn giờ!');
+                return;
+            }
+            const timeVal = document.getElementById('schedTimeInput').value.trim();
+            if (!timeVal) {
+                alert('Vui lòng nhập giờ hẹn!');
+                return;
+            }
+            const repeatDaily = parseInt(document.getElementById('schedRepeatSelect').value || '0');
+
+            try {
+                const res = await fetch('/api/admin/schedules/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        youtube_id: currentScheduleSong.youtube_id || currentScheduleSong.id,
+                        title: currentScheduleSong.title,
+                        thumbnail: currentScheduleSong.thumbnail,
+                        duration: currentScheduleSong.duration,
+                        channel: currentScheduleSong.channel,
+                        scheduled_time: timeVal,
+                        repeat_daily: repeatDaily,
+                        is_admin: true
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    closeScheduleModal();
+                    fetchSchedules();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối khi lưu lịch hẹn giờ!');
+            }
+        }
+
+        async function deleteSchedule(scheduleId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa lịch hẹn giờ này? (Bài hát tương ứng trong playlist cũng sẽ đồng bộ xóa)')) return;
+            try {
+                const res = await fetch('/api/admin/schedules/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ schedule_id: scheduleId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    if (data.deleted_playlist_songs > 0) {
+                        showToast(`Đã xóa lịch hẹn giờ & đồng bộ xóa bài khỏi playlist quán!`);
+                    } else {
+                        showToast(data.message);
+                    }
+                    if (data.schedules) {
+                        adminSchedules = data.schedules;
+                        renderSchedules(data.schedules);
+                    } else {
+                        fetchSchedules();
+                    }
+                    if (selectedPlaylistId) {
+                        fetchPlaylistSongs(selectedPlaylistId);
+                    }
+                    if (data.playlists) {
+                        playlistsData = data.playlists;
+                        renderPlaylistsList();
+                    } else {
+                        fetchPlaylists();
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        async function triggerScheduleNow(scheduleId) {
+            try {
+                const res = await fetch('/api/admin/schedules/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ schedule_id: scheduleId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`⚡ ${data.message}`);
+                    fetchQueue();
+                    fetchSchedules();
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // ----------------------------------------------------
+        // HOT ITEMS & MENU CATEGORIES MANAGEMENT
+        // ----------------------------------------------------
+        let adminHotItems = [];
+        let adminMenuCategories = ['Cà Phê', 'Rau Má – Sữa Đậu', 'Trà', 'Nước Ép', 'Đá Xay', 'Trà Sữa', 'Soda', 'Sinh Tố', 'Sữa Chua'];
+
+        function normalizeCategoryLabel(raw, itemName = '') {
+            const c = String(raw || '').trim();
+            if (c && !['coffee', 'tea', 'milk', 'snack'].includes(c)) return c;
+            if (c === 'tea') return 'Trà';
+            if (c === 'milk') return 'Sữa & Matcha';
+            if (c === 'snack') return 'Bánh & Ăn Vặt';
+            const n = String(itemName || '').toLowerCase();
+            if (n.includes('trà') || n.includes('đào') || n.includes('vải') || n.includes('chanh')) return 'Trà';
+            if (n.includes('matcha') || n.includes('latte') || n.includes('sữa') || n.includes('cacao')) return 'Sữa & Matcha';
+            if (n.includes('bánh') || n.includes('croissant') || n.includes('hạt')) return 'Bánh & Ăn Vặt';
+            return 'Cà Phê';
+        }
+
+        function syncAdminCategoriesFromItems() {
+            adminHotItems.forEach(it => {
+                const cat = normalizeCategoryLabel(it.category, it.name);
+                it.category = cat;
+                if (cat && !adminMenuCategories.includes(cat)) {
+                    adminMenuCategories.push(cat);
+                }
+            });
+            renderAdminCategories();
+        }
+
+        function renderAdminCategories(selectedValue = null) {
+            const chipList = document.getElementById('adminCategoriesChipList');
+            if (chipList) {
+                chipList.innerHTML = `
+                    <span class="text-[11px] font-bold text-slate-400 mr-1 flex items-center gap-1">
+                        <i data-lucide="tags" class="w-3.5 h-3.5 text-amber-400"></i>
+                        <span>Phân loại:</span>
+                    </span>
+                    ${adminMenuCategories.map((cat, idx) => `
+                        <div class="inline-flex items-center gap-1 bg-slate-950 border border-slate-700/90 rounded-lg px-2.5 py-1 text-xs text-slate-200 font-semibold">
+                            <span onclick="renameAdminMenuCategory(${idx})" class="cursor-pointer hover:text-amber-300 transition" title="Bấm để đổi tên phân loại">${escapeHtml(cat)}</span>
+                            <button type="button" onclick="renameAdminMenuCategory(${idx})" class="text-slate-500 hover:text-amber-400 ml-0.5" title="Đổi tên">
+                                <i data-lucide="pencil" class="w-3 h-3"></i>
+                            </button>
+                            ${adminMenuCategories.length > 1 ? `
+                                <button type="button" onclick="removeAdminMenuCategory(${idx})" class="text-slate-500 hover:text-rose-400" title="Xóa phân loại">
+                                    <i data-lucide="x" class="w-3 h-3"></i>
+                                </button>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                `;
+            }
+
+            const catSelect = document.getElementById('hotItemCategoryInput');
+            if (catSelect) {
+                const currentVal = selectedValue !== null ? selectedValue : catSelect.value;
+                catSelect.innerHTML = adminMenuCategories.map(c =>
+                    `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`
+                ).join('');
+                if (currentVal && adminMenuCategories.includes(currentVal)) {
+                    catSelect.value = currentVal;
+                } else if (adminMenuCategories.length > 0) {
+                    catSelect.value = adminMenuCategories[0];
+                }
+            }
+            lucide.createIcons();
+        }
+
+        async function persistAdminCategories() {
+            try {
+                const formData = new FormData();
+                formData.append('is_admin', 'true');
+                formData.append('action', 'save_categories');
+                formData.append('categories_json', JSON.stringify(adminMenuCategories));
+                const res = await fetch('/api/admin/hot_items/save', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data && Array.isArray(data.categories)) {
+                    adminMenuCategories = data.categories;
+                }
+            } catch (err) {
+                console.error('Error saving categories:', err);
+            }
+            renderAdminCategories();
+        }
+
+        async function addAdminMenuCategory() {
+            const input = document.getElementById('newMenuCategoryInput');
+            const val = (input?.value || '').trim();
+            if (!val) return;
+            if (adminMenuCategories.includes(val)) {
+                showToast(`Phân loại "${val}" đã tồn tại!`);
+                input.value = '';
+                return;
+            }
+            adminMenuCategories.push(val);
+            input.value = '';
+            await persistAdminCategories();
+            showToast(`✅ Đã thêm phân loại "${val}"`);
+        }
+
+        async function renameAdminMenuCategory(idx) {
+            const oldName = adminMenuCategories[idx];
+            if (!oldName) return;
+            const newName = prompt('Nhập tên mới cho phân loại món uống:', oldName);
+            if (!newName || !newName.trim() || newName.trim() === oldName) return;
+            const cleaned = newName.trim();
+            adminMenuCategories[idx] = cleaned;
+            await persistAdminCategories();
+            // Also update any items using oldName
+            for (const item of adminHotItems) {
+                if (normalizeCategoryLabel(item.category, item.name) === oldName) {
+                    const fd = new FormData();
+                    fd.append('is_admin', 'true');
+                    fd.append('item_id', item.id);
+                    fd.append('name', item.name);
+                    fd.append('price', item.price);
+                    fd.append('description', item.description || '');
+                    fd.append('category', cleaned);
+                    fd.append('is_hot', item.is_hot === 0 ? '0' : '1');
+                    await fetch('/api/admin/hot_items/save', { method: 'POST', body: fd });
+                }
+            }
+            await fetchHotItems();
+            showToast(`✅ Đã đổi tên thành "${cleaned}"`);
+        }
+
+        async function removeAdminMenuCategory(idx) {
+            const target = adminMenuCategories[idx];
+            if (!target || adminMenuCategories.length <= 1) return;
+            if (!confirm(`Xóa phân loại "${target}"?`)) return;
+            adminMenuCategories.splice(idx, 1);
+            await persistAdminCategories();
+            showToast(`🗑️ Đã xóa phân loại "${target}"`);
+        }
+
+        async function fetchHotItems() {
+            try {
+                const res = await fetch('/api/hot_items');
+                const data = await res.json();
+                if (data.success) {
+                    if (Array.isArray(data.categories) && data.categories.length > 0) {
+                        adminMenuCategories = data.categories;
+                    }
+                    adminHotItems = data.items || [];
+                    syncAdminCategoriesFromItems();
+                    renderAdminHotItems(adminHotItems);
+                }
+            } catch (err) {
+                console.error('Error fetching hot items:', err);
+            }
+        }
+
+        async function toggleAdminItemHot(idx, checked) {
+            const item = adminHotItems[idx];
+            if (!item) return;
+            item.is_hot = checked ? 1 : 0;
+            if (!checked) {
+                item.is_new = 0;
+            }
+            renderAdminHotItems(adminHotItems);
+
+            try {
+                const formData = new FormData();
+                formData.append('is_admin', 'true');
+                formData.append('item_id', item.id);
+                formData.append('name', item.name);
+                formData.append('price', item.price);
+                formData.append('description', item.description || '');
+                formData.append('category', normalizeCategoryLabel(item.category, item.name));
+                formData.append('is_hot', checked ? '1' : '0');
+                if (!checked) formData.append('is_new', '0');
+
+                const res = await fetch('/api/admin/hot_items/save', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminHotItems = data.items || adminHotItems;
+                    renderAdminHotItems(adminHotItems);
+                    showToast(checked ? `🔥 Đã bật HOT cho "${item.name}"` : `Đã tắt HOT cho "${item.name}" (vẫn hiện trong Menu)`);
+                }
+            } catch (err) {
+                console.error('Error toggling hot status:', err);
+            }
+        }
+
+        async function toggleAdminItemNew(idx, checked) {
+            const item = adminHotItems[idx];
+            if (!item) return;
+            item.is_new = checked ? 1 : 0;
+            if (checked) {
+                item.is_hot = 1;
+            }
+            renderAdminHotItems(adminHotItems);
+
+            try {
+                const formData = new FormData();
+                formData.append('is_admin', 'true');
+                formData.append('item_id', item.id);
+                formData.append('is_new', checked ? '1' : '0');
+
+                const res = await fetch('/api/admin/hot_items/toggle_new', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminHotItems = data.items || adminHotItems;
+                    renderAdminHotItems(adminHotItems);
+                    showToast(checked ? `⚡ Đã bật Món Mới Super Saiyan cho "${item.name}"` : `Đã tắt Món Mới cho "${item.name}"`);
+                }
+            } catch (err) {
+                console.error('Error toggling new status:', err);
+            }
+        }
+
+        async function changeAdminItemCategory(idx, newCat) {
+            const item = adminHotItems[idx];
+            if (!item || !newCat) return;
+            item.category = newCat;
+            const isHot = item.is_hot === undefined || item.is_hot === null ? true : Number(item.is_hot) !== 0;
+            renderAdminHotItems(adminHotItems);
+
+            try {
+                const formData = new FormData();
+                formData.append('is_admin', 'true');
+                formData.append('item_id', item.id);
+                formData.append('name', item.name);
+                formData.append('price', item.price);
+                formData.append('description', item.description || '');
+                formData.append('category', newCat);
+                formData.append('is_hot', isHot ? '1' : '0');
+
+                const res = await fetch('/api/admin/hot_items/save', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    adminHotItems = data.items || adminHotItems;
+                    renderAdminHotItems(adminHotItems);
+                    showToast(`✅ Đã đổi phân loại "${item.name}" sang "${newCat}"`);
+                }
+            } catch (err) {
+                console.error('Error updating category:', err);
+            }
+        }
+
+        function renderAdminHotItems(items) {
+            const grid = document.getElementById('adminHotItemsGrid');
+            const badge = document.getElementById('hotItemsCountBadge');
+            if (!grid) return;
+
+            const count = items ? items.length : 0;
+            if (badge) badge.textContent = `${count} món`;
+
+            if (!items || items.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-10 text-slate-500 text-xs">
+                        <i data-lucide="flame" class="w-8 h-8 mx-auto mb-2 opacity-40"></i>
+                        Chưa có món nào. Bấm "+ Thêm Món Mới" để thêm món vào Menu Quán & ô HOT!
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            grid.innerHTML = items.map((item, idx) => {
+                const isHot = item.is_hot === undefined || item.is_hot === null ? true : Number(item.is_hot) !== 0;
+                const isNew = item.is_new !== undefined && item.is_new !== null && Number(item.is_new) !== 0;
+                const catName = normalizeCategoryLabel(item.category, item.name);
+                const catOptions = (adminMenuCategories.includes(catName) ? adminMenuCategories : [...adminMenuCategories, catName])
+                    .map(c => `<option value="${escapeHtml(c)}" ${c === catName ? 'selected' : ''}>${escapeHtml(c)}</option>`)
+                    .join('');
+                return `
+                <div class="bg-slate-900/70 border ${isNew ? 'border-yellow-400/80 ring-1 ring-yellow-400/30 shadow-lg shadow-yellow-500/10' : (isHot ? 'border-amber-500/40' : 'border-slate-800')} hover:border-amber-500/60 rounded-2xl p-3 flex sm:flex-col gap-3 transition">
+                    <div class="relative w-20 h-24 sm:w-full sm:h-40 rounded-xl overflow-hidden bg-slate-950 flex-shrink-0 border border-white/5">
+                        <img src="${item.image_url}" alt="${escapeHtml(item.name)}" class="w-full h-full object-cover" />
+                        <span class="absolute top-1.5 left-1.5 bg-black/75 backdrop-blur-md text-slate-200 font-mono text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10">
+                            ${escapeHtml(catName)}
+                        </span>
+                        ${isNew ? `
+                        <span class="absolute top-1.5 right-1.5 bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-[9px] px-2 py-0.5 rounded-full shadow-md border border-yellow-200 animate-pulse flex items-center gap-0.5">
+                            <span>⚡ MỚI</span>
+                        </span>
+                        ` : ''}
+                        <span class="hidden sm:inline-block absolute bottom-1.5 right-1.5 bg-amber-500 text-slate-950 font-mono text-xs font-extrabold px-2.5 py-0.5 rounded-lg shadow">
+                            ${escapeHtml(item.price)}
+                        </span>
+                    </div>
+                    <div class="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between gap-2">
+                                <h4 class="font-bold text-xs sm:text-sm text-white truncate" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
+                                <span class="sm:hidden bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono text-[11px] font-bold px-2 py-0.5 rounded-lg flex-shrink-0">
+                                    ${escapeHtml(item.price)}
+                                </span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">${escapeHtml(item.description || 'Chưa có mô tả')}</p>
+                        </div>
+
+                        <!-- Direct Outside Controls: Category Select + HOT Checkbox + NEW Checkbox + Edit/Delete -->
+                        <div class="mt-2.5 pt-2 border-t border-slate-800/80 space-y-2">
+                            <div class="flex items-center gap-1.5">
+                                <select onchange="changeAdminItemCategory(${idx}, this.value)" class="flex-1 min-w-0 bg-slate-950 border border-slate-700 hover:border-amber-500/50 rounded-lg px-2 py-1 text-[11px] font-semibold text-slate-200 focus:outline-none focus:border-amber-400 cursor-pointer" title="Đổi nhanh phân loại món">
+                                    ${catOptions}
+                                </select>
+                                <label class="inline-flex items-center gap-1 px-2 py-1 rounded-lg cursor-pointer select-none border transition flex-shrink-0 ${isHot ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-slate-800/70 border-slate-700 text-slate-400 hover:text-slate-200'}" title="Tick để hiện món này ở vòng xoay HOT ngoài trang chủ">
+                                    <input type="checkbox" ${isHot ? 'checked' : ''} onchange="toggleAdminItemHot(${idx}, this.checked)" class="w-3.5 h-3.5 accent-amber-500 rounded cursor-pointer" />
+                                    <span class="text-[11px] font-extrabold">🔥 HOT</span>
+                                </label>
+                                <label class="inline-flex items-center gap-1 px-2 py-1 rounded-lg cursor-pointer select-none border transition flex-shrink-0 ${isNew ? 'bg-yellow-500/25 border-yellow-400 text-yellow-300 shadow-sm shadow-yellow-500/20' : 'bg-slate-800/70 border-slate-700 text-slate-400 hover:text-slate-200'}" title="Tick để gắn hiệu ứng Super Saiyan và đánh dấu Món Mới">
+                                    <input type="checkbox" ${isNew ? 'checked' : ''} onchange="toggleAdminItemNew(${idx}, this.checked)" class="w-3.5 h-3.5 accent-yellow-400 rounded cursor-pointer" />
+                                    <span class="text-[11px] font-extrabold">⚡ MỚI</span>
+                                </label>
+                            </div>
+
+                            <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="openAdminHotModal(${idx})" class="flex-1 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-center gap-1 transition">
+                                    <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                    <span>Sửa</span>
+                                </button>
+                                <button onclick="deleteHotItem(${item.id})" class="bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 px-2.5 py-1.5 rounded-lg transition flex items-center justify-center" title="Xóa món này">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `}).join('');
+            lucide.createIcons();
+        }
+
+        function formatHotPriceDigits(raw) {
+            const digits = String(raw || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+            if (!digits) return '';
+            return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function formatHotPriceInput(inputEl) {
+            if (!inputEl) return;
+            inputEl.value = formatHotPriceDigits(inputEl.value);
+        }
+
+        function normalizeHotPriceWithCurrency(raw) {
+            const formatted = formatHotPriceDigits(raw);
+            return formatted ? `${formatted}đ` : '';
+        }
+
+        function openAdminHotModal(editIdx = null) {
+            const modal = document.getElementById('hotItemAdminModal');
+            const titleEl = document.getElementById('hotModalHeaderTitle');
+            const idInput = document.getElementById('hotItemIdInput');
+            const nameInput = document.getElementById('hotItemNameInput');
+            const priceInput = document.getElementById('hotItemPriceInput');
+            const descInput = document.getElementById('hotItemDescInput');
+            const catInput = document.getElementById('hotItemCategoryInput');
+            const isHotInput = document.getElementById('hotItemIsHotInput');
+            const isNewInput = document.getElementById('hotItemIsNewInput');
+            const fileInput = document.getElementById('hotItemFileInput');
+            const urlInput = document.getElementById('hotItemUrlInput');
+            const previewImg = document.getElementById('hotItemPreviewImg');
+            const placeholder = document.getElementById('hotItemPreviewPlaceholder');
+
+            fileInput.value = '';
+            if (editIdx !== null && adminHotItems[editIdx]) {
+                const item = adminHotItems[editIdx];
+                const catVal = normalizeCategoryLabel(item.category, item.name);
+                renderAdminCategories(catVal);
+                titleEl.innerHTML = `<i data-lucide="edit-3" class="w-5 h-5 text-amber-400"></i><span>Chỉnh Sửa Món</span>`;
+                idInput.value = item.id;
+                nameInput.value = item.name || '';
+                priceInput.value = formatHotPriceDigits(item.price || '');
+                descInput.value = item.description || '';
+                if (catInput) catInput.value = catVal;
+                if (isHotInput) isHotInput.checked = item.is_hot === undefined || item.is_hot === null ? true : Number(item.is_hot) !== 0;
+                if (isNewInput) isNewInput.checked = Boolean(item.is_new !== undefined && item.is_new !== null && Number(item.is_new) !== 0);
+                urlInput.value = item.image_url || '';
+                if (item.image_url) {
+                    previewImg.src = item.image_url;
+                    previewImg.classList.remove('hidden');
+                    placeholder.classList.add('hidden');
+                }
+            } else {
+                renderAdminCategories(adminMenuCategories[0] || 'Cà Phê');
+                titleEl.innerHTML = `<i data-lucide="flame" class="w-5 h-5 text-amber-400 fill-amber-400"></i><span>Thêm Món Mới</span>`;
+                idInput.value = '';
+                nameInput.value = '';
+                priceInput.value = '';
+                descInput.value = '';
+                if (catInput) catInput.value = adminMenuCategories[0] || 'Cà Phê';
+                if (isHotInput) isHotInput.checked = true;
+                if (isNewInput) isNewInput.checked = false;
+                urlInput.value = '';
+                previewImg.src = '';
+                previewImg.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeAdminHotModal() {
+            document.getElementById('hotItemAdminModal')?.classList.add('hidden');
+        }
+
+        function previewAdminHotImage(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const previewImg = document.getElementById('hotItemPreviewImg');
+                const placeholder = document.getElementById('hotItemPreviewPlaceholder');
+                previewImg.src = ev.target.result;
+                previewImg.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function previewAdminHotUrl(url) {
+            const fileInput = document.getElementById('hotItemFileInput');
+            if (fileInput.files && fileInput.files.length > 0) return;
+            const previewImg = document.getElementById('hotItemPreviewImg');
+            const placeholder = document.getElementById('hotItemPreviewPlaceholder');
+            if (url && url.trim()) {
+                previewImg.src = url.trim();
+                previewImg.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                previewImg.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        async function handleSaveHotItem(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSubmitHotItem');
+            const itemId = document.getElementById('hotItemIdInput').value.trim();
+            const name = document.getElementById('hotItemNameInput').value.trim();
+            const rawPrice = document.getElementById('hotItemPriceInput').value.trim();
+            const price = normalizeHotPriceWithCurrency(rawPrice);
+            if (!price) {
+                alert('Vui lòng nhập số tiền hợp lệ!');
+                return;
+            }
+            const desc = document.getElementById('hotItemDescInput').value.trim();
+            const category = document.getElementById('hotItemCategoryInput')?.value || 'coffee';
+            const isHot = document.getElementById('hotItemIsHotInput')?.checked ? '1' : '0';
+            const isNew = document.getElementById('hotItemIsNewInput')?.checked ? '1' : '0';
+            const urlVal = document.getElementById('hotItemUrlInput').value.trim();
+            const fileInput = document.getElementById('hotItemFileInput');
+
+            const formData = new FormData();
+            formData.append('is_admin', 'true');
+            if (itemId) formData.append('item_id', itemId);
+            formData.append('name', name);
+            formData.append('price', price);
+            formData.append('description', desc);
+            formData.append('category', category);
+            formData.append('is_hot', isHot);
+            formData.append('is_new', isNew);
+            if (urlVal) formData.append('image_url', urlVal);
+            if (fileInput.files && fileInput.files[0]) {
+                formData.append('image_file', fileInput.files[0]);
+            }
+
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/admin/hot_items/save', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`🔥 ${data.message}`);
+                    adminHotItems = data.items || [];
+                    renderAdminHotItems(adminHotItems);
+                    closeAdminHotModal();
+                } else {
+                    alert(data.message || 'Không thể lưu món HOT!');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('Lỗi kết nối khi lưu món HOT!');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function deleteHotItem(itemId) {
+            if (!confirm('Bạn có chắc chắn muốn xóa món HOT này?')) return;
+            try {
+                const res = await fetch('/api/admin/hot_items/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ item_id: itemId, is_admin: true })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message);
+                    adminHotItems = data.items || [];
+                    renderAdminHotItems(adminHotItems);
+                } else {
+                    alert(data.message);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        let adminToastTimer = null;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.add('opacity-100', 'translate-y-0');
+            clearTimeout(adminToastTimer);
+            adminToastTimer = setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.remove('opacity-100', 'translate-y-0');
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+</body>
+</html>
+
