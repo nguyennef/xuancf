@@ -1,0 +1,70 @@
+# ==========================================
+# CSDL & DATABASE (Không up lên Git)
+# ==========================================
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.db3
+songs.db
+database.db
+karaoke.db
+
+# ==========================================
+# Python Bytecode & Cache
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+
+# ==========================================
+# Virtual Environment
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Biến môi trường & Bí mật
+# ==========================================
+.env
+.env.*
+!.env.example
+
+# ==========================================
+# IDE & Code Editor
+# ==========================================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ==========================================
+# File tạm của Hệ điều hành (Windows / macOS)
+# ==========================================
+Thumbs.db
+Desktop.ini
+.DS_Store
+$RECYCLE.BIN/
+
+# ==========================================
+# File nhạc upload tạm trong static/music
+# ==========================================
+static/music/*
+!static/music/.gitkeep
+
+# ==========================================
+# File nén cập nhật tạm thời
+# ==========================================
+*.zip
+update.zip
+
+
+

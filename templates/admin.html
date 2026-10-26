@@ -166,8 +166,12 @@
                     </div>
                 </div>
 
-                <div id="adminCurrentActions" class="hidden pt-3 mt-2 border-t border-slate-800/80 flex gap-2">
-                    <button onclick="remoteCmd('next')" class="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                <div id="adminCurrentActions" class="hidden pt-3 mt-2 border-t border-slate-800/80 flex flex-wrap sm:flex-nowrap gap-2">
+                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài đang hát vào Playlist gốc của quán (bài hát yêu thích)" class="bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 px-3 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition flex-shrink-0 active:scale-95 shadow-sm">
+                        <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-400 fill-rose-400/30"></i>
+                        <span>Lưu vào Playlist</span>
+                    </button>
+                    <button type="button" onclick="remoteCmd('next')" class="flex-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition active:scale-95">
                         <i data-lucide="skip-forward" class="w-3.5 h-3.5"></i>
                         <span>Kết thúc bài này & chuyển tiếp</span>
                     </button>
@@ -546,6 +550,53 @@
                     Tạo Playlist
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal: Save Current Song to Playlist (Chọn Playlist khi có >= 2 playlist) -->
+    <div id="saveCurrentToPlaylistModal" onclick="if(event.target===this) closeSaveCurrentToPlaylistModal()" class="fixed inset-0 z-50 flex items-center justify-center p-3.5 sm:p-4 bg-black/80 backdrop-blur-sm hidden">
+        <div class="admin-card rounded-2xl max-w-md w-full p-5 sm:p-6 border border-slate-700 shadow-2xl relative">
+            <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
+                <h3 class="font-bold text-base text-white flex items-center gap-2">
+                    <i data-lucide="heart" class="w-5 h-5 text-rose-400 fill-rose-400/30"></i>
+                    <span>Lưu Vào Playlist Gốc</span>
+                </h3>
+                <button type="button" onclick="closeSaveCurrentToPlaylistModal()" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Preview bài hát đang phát -->
+            <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3 mb-4 flex items-center gap-3">
+                <img id="saveCurrentSongThumb" src="" alt="Thumbnail" class="w-14 h-11 rounded-lg object-cover flex-shrink-0 border border-slate-700 shadow" />
+                <div class="min-w-0 flex-1">
+                    <div class="text-[10px] uppercase font-bold text-rose-400 flex items-center gap-1">
+                        <i data-lucide="disc-3" class="w-3 h-3"></i>
+                        <span>Bài đang phát trên loa</span>
+                    </div>
+                    <h4 id="saveCurrentSongTitle" class="text-xs font-semibold text-white truncate mt-0.5"></h4>
+                    <p id="saveCurrentSongMeta" class="text-[11px] text-slate-400 truncate mt-0.5"></p>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                    <label class="block text-xs font-semibold text-slate-300">
+                        Chọn Playlist để thêm bài hát vào:
+                    </label>
+                    <span id="saveCurrentPlaylistCount" class="text-[10px] text-slate-400 font-mono"></span>
+                </div>
+
+                <div id="saveCurrentPlaylistOptions" class="space-y-2 max-h-64 overflow-y-auto pr-1">
+                    <!-- Dynamic playlist list -->
+                </div>
+
+                <div class="pt-3 border-t border-slate-800 flex justify-end">
+                    <button type="button" onclick="closeSaveCurrentToPlaylistModal()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-xl text-xs transition">
+                        Đóng
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1147,24 +1198,31 @@
             }
         }
 
+        let currentPlayingSong = null;
+
         function renderAdminQueue(queue) {
+            currentPlayingSong = queue.current || null;
             // Render Current Playing
             const npContent = document.getElementById('adminNowPlayingContent');
             const curActions = document.getElementById('adminCurrentActions');
             if (queue.current) {
                 npContent.innerHTML = `
-                    <img src="${queue.current.thumbnail || 'https://i.ytimg.com/vi/' + queue.current.youtube_id + '/hqdefault.jpg'}" class="w-16 h-12 rounded-lg object-cover flex-shrink-0 border border-slate-700" />
+                    <img src="${queue.current.thumbnail || 'https://i.ytimg.com/vi/' + queue.current.youtube_id + '/hqdefault.jpg'}" class="w-16 h-12 rounded-lg object-cover flex-shrink-0 border border-slate-700 shadow" />
                     <div class="min-w-0 flex-1">
-                        <h4 class="text-xs font-semibold text-white truncate">${escapeHtml(queue.current.title)}</h4>
+                        <h4 class="text-xs font-semibold text-white truncate" title="${escapeHtml(queue.current.title)}">${escapeHtml(queue.current.title)}</h4>
                         <p class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(queue.current.channel || 'YouTube')} • ${queue.current.duration || '--:--'}</p>
                         <p class="text-[11px] text-emerald-400 font-medium mt-0.5">Order bởi: <strong>${escapeHtml(queue.current.user_name)}</strong></p>
                     </div>
+                    <button type="button" onclick="saveCurrentSongToPlaylist()" title="Lưu bài này vào Playlist gốc của quán (bài hát yêu thích)" class="flex-shrink-0 p-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 transition active:scale-95 flex items-center justify-center">
+                        <i data-lucide="heart" class="w-4 h-4 text-rose-400 fill-rose-400/30"></i>
+                    </button>
                 `;
                 curActions.classList.remove('hidden');
             } else {
                 npContent.innerHTML = `<div class="text-slate-500 text-xs py-4">Chưa có bài nào đang phát trên loa</div>`;
                 curActions.classList.add('hidden');
             }
+            lucide.createIcons();
 
             // Render Waiting Table
             const tbody = document.getElementById('adminQueueTbody');
@@ -1629,6 +1687,143 @@
                 }
             } catch (err) {
                 console.error('Error fetching playlists:', err);
+            }
+        }
+
+        // ============================================================
+        // LƯU BÀI ĐANG HÁT VÀO PLAYLIST GỐC (BÀI HÁT YÊU THÍCH)
+        // ============================================================
+        async function saveCurrentSongToPlaylist() {
+            if (!currentPlayingSong) {
+                showToast('Hiện chưa có bài hát nào đang phát trên loa!', 'warning');
+                return;
+            }
+
+            // Đảm bảo dữ liệu playlistsData đã được load
+            if (!playlistsData || playlistsData.length === 0) {
+                try {
+                    const res = await fetch('/api/playlists');
+                    const data = await res.json();
+                    if (data.success && data.playlists) {
+                        playlistsData = data.playlists;
+                    }
+                } catch (e) {
+                    console.error('Lỗi tải danh sách playlist:', e);
+                }
+            }
+
+            if (!playlistsData || playlistsData.length === 0) {
+                showToast('Chưa có Playlist gốc nào! Hãy cuộn xuống mục Playlist để tạo mới trước.', 'warning');
+                return;
+            }
+
+            // Nếu chỉ có đúng 1 playlist -> Lưu trực tiếp luôn
+            if (playlistsData.length === 1) {
+                const singlePl = playlistsData[0];
+                executeSaveCurrentToPlaylist(singlePl.id, singlePl.name);
+                return;
+            }
+
+            // Nếu có từ 2 playlist trở lên -> Mở modal cho admin chọn playlist
+            openSaveCurrentToPlaylistModal(currentPlayingSong);
+        }
+
+        function openSaveCurrentToPlaylistModal(song) {
+            const modal = document.getElementById('saveCurrentToPlaylistModal');
+            if (!modal) return;
+
+            // Render thông tin bài hát
+            const thumbEl = document.getElementById('saveCurrentSongThumb');
+            const titleEl = document.getElementById('saveCurrentSongTitle');
+            const metaEl = document.getElementById('saveCurrentSongMeta');
+            const countEl = document.getElementById('saveCurrentPlaylistCount');
+            const optionsEl = document.getElementById('saveCurrentPlaylistOptions');
+
+            if (thumbEl) {
+                thumbEl.src = song.thumbnail || `https://i.ytimg.com/vi/${song.youtube_id}/hqdefault.jpg`;
+            }
+            if (titleEl) {
+                titleEl.textContent = song.title || 'Đang phát';
+                titleEl.title = song.title || '';
+            }
+            if (metaEl) {
+                metaEl.textContent = `${song.channel || 'YouTube'} • ${song.duration || '--:--'}`;
+            }
+            if (countEl) {
+                countEl.textContent = `${playlistsData.length} playlist`;
+            }
+
+            // Render danh sách playlist cho admin click chọn
+            if (optionsEl) {
+                optionsEl.innerHTML = playlistsData.map(p => {
+                    const isActive = Boolean(p.is_active);
+                    return `
+                        <button type="button" onclick="executeSaveCurrentToPlaylist(${p.id}, '${escapeHtml(p.name).replace(/'/g, "\\'")}')" class="w-full text-left bg-slate-800/60 hover:bg-rose-500/10 hover:border-rose-500/50 border border-slate-700/80 p-3 rounded-xl transition flex items-center justify-between group active:scale-[0.99]">
+                            <div class="min-w-0 pr-2">
+                                <div class="font-bold text-xs text-white group-hover:text-rose-300 flex items-center gap-1.5 truncate">
+                                    <i data-lucide="disc-3" class="w-3.5 h-3.5 text-rose-400 flex-shrink-0"></i>
+                                    <span class="truncate">${escapeHtml(p.name)}</span>
+                                    ${isActive ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded font-bold">Đang phát</span>' : ''}
+                                </div>
+                                <p class="text-[11px] text-slate-400 mt-0.5 truncate">${escapeHtml(p.description || 'Chưa có mô tả')} • <span class="text-slate-300 font-semibold">${p.song_count || 0} bài</span></p>
+                            </div>
+                            <div class="flex-shrink-0 text-slate-400 group-hover:text-rose-300 flex items-center gap-1 text-xs font-semibold">
+                                <span>Thêm vào</span>
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+            }
+
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeSaveCurrentToPlaylistModal() {
+            const modal = document.getElementById('saveCurrentToPlaylistModal');
+            if (modal) modal.classList.add('hidden');
+        }
+
+        async function executeSaveCurrentToPlaylist(playlistId, playlistName) {
+            if (!currentPlayingSong) {
+                showToast('Hiện không có bài hát nào đang phát!', 'warning');
+                return;
+            }
+
+            showToast(`Đang lưu vào Playlist "${playlistName || ''}"...`);
+
+            try {
+                const res = await fetch('/api/playlists/save_current', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playlist_id: playlistId })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message || `Đã lưu vào Playlist "${playlistName}" thành công!`);
+                    closeSaveCurrentToPlaylistModal();
+
+                    if (data.playlists) {
+                        playlistsData = data.playlists;
+                        renderPlaylistsList();
+                    }
+
+                    // Nếu admin đang xem đúng playlist này thì update luôn danh sách bài
+                    if (selectedPlaylistId && String(selectedPlaylistId) === String(playlistId)) {
+                        if (data.songs) {
+                            selectedPlaylistSongs = data.songs;
+                            renderPlaylistSongs(data.songs);
+                        } else {
+                            fetchPlaylistSongs(selectedPlaylistId);
+                        }
+                    }
+                } else {
+                    showToast(data.message || 'Lỗi khi lưu bài vào Playlist!', 'error');
+                }
+            } catch (err) {
+                console.error('Lỗi executeSaveCurrentToPlaylist:', err);
+                showToast('Không thể kết nối đến máy chủ!', 'error');
             }
         }
 

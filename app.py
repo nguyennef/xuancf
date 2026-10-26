@@ -885,6 +885,69 @@ def api_add_song_to_playlist(playlist_id):
     playlists = database.get_all_playlists()
     return jsonify({'success': True, 'message': message, 'song': new_song, 'songs': songs, 'playlists': playlists})
 
+@app.route('/api/playlists/save_current', methods=['POST'])
+def api_save_current_song_to_playlist():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'message': 'Dữ liệu JSON không hợp lệ!'}), 400
+
+    if not check_is_admin(data):
+        return jsonify({'success': False, 'message': 'Chỉ Admin mới có quyền lưu bài vào Playlist!'}), 403
+
+    active_queue = database.get_active_queue()
+    current_song = active_queue.get('current')
+    if not current_song:
+        return jsonify({'success': False, 'message': 'Hiện không có bài hát nào đang phát trên loa!'}), 400
+
+    playlists = database.get_all_playlists()
+    if not playlists:
+        return jsonify({'success': False, 'message': 'Chưa có Playlist gốc nào trong hệ thống! Vui lòng tạo Playlist trước.'}), 400
+
+    playlist_id = data.get('playlist_id')
+    if not playlist_id:
+        if len(playlists) == 1:
+            playlist_id = playlists[0]['id']
+        else:
+            return jsonify({
+                'success': False, 
+                'need_choice': True,
+                'message': 'Hệ thống có từ 2 Playlist trở lên, vui lòng chọn Playlist bạn muốn lưu vào!',
+                'playlists': playlists
+            }), 400
+    else:
+        try:
+            playlist_id = int(playlist_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'message': 'ID Playlist không hợp lệ!'}), 400
+
+    target_pl = next((p for p in playlists if p['id'] == playlist_id), None)
+    if not target_pl:
+        return jsonify({'success': False, 'message': 'Không tìm thấy Playlist đã chọn!'}), 404
+
+    success, message, new_song = database.add_song_to_playlist(
+        playlist_id=playlist_id,
+        youtube_id=current_song.get('youtube_id') or '',
+        title=current_song.get('title') or '',
+        thumbnail=current_song.get('thumbnail') or '',
+        duration=current_song.get('duration') or '--:--',
+        channel=current_song.get('channel') or 'YouTube',
+        check_duplicate=True
+    )
+
+    if not success:
+        return jsonify({'success': False, 'message': message}), 400
+
+    songs = database.get_playlist_songs(playlist_id)
+    updated_playlists = database.get_all_playlists()
+    return jsonify({
+        'success': True,
+        'message': f"Đã lưu bài '{current_song.get('title')}' vào Playlist '{target_pl['name']}' thành công!",
+        'song': new_song,
+        'songs': songs,
+        'playlist_id': playlist_id,
+        'playlists': updated_playlists
+    })
+
 @app.route('/api/playlists/songs/delete', methods=['POST'])
 def api_delete_song_from_playlist():
     data = request.get_json(silent=True)

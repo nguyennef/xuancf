@@ -145,128 +145,140 @@
             0%, 100% {
                 border-color: #fef08a;
                 box-shadow:
-                    0 0 12px 2px rgba(254, 240, 138, 0.95),
-                    0 0 26px 6px rgba(250, 204, 21, 0.75),
-                    0 -8px 34px 8px rgba(245, 158, 11, 0.6),
-                    0 0 46px 10px rgba(56, 189, 248, 0.28),
-                    inset 0 0 16px rgba(254, 240, 138, 0.55);
+                    -3px -3px 12px 1px rgba(56, 189, 248, 0.65),
+                    3px 3px 14px 1px rgba(250, 204, 21, 0.75),
+                    0 0 6px 1px rgba(254, 240, 138, 0.9),
+                    inset 0 0 8px rgba(254, 240, 138, 0.35);
             }
-            35% {
+            50% {
                 border-color: #ffffff;
                 box-shadow:
-                    0 0 16px 4px rgba(255, 255, 255, 0.98),
-                    0 -6px 32px 10px rgba(250, 204, 21, 0.92),
-                    0 -14px 44px 12px rgba(245, 158, 11, 0.78),
-                    0 0 54px 14px rgba(56, 189, 248, 0.65),
-                    inset 0 0 22px rgba(56, 189, 248, 0.5);
-            }
-            70% {
-                border-color: #facc15;
-                box-shadow:
-                    0 0 14px 3px rgba(254, 240, 138, 0.9),
-                    0 -10px 36px 9px rgba(251, 191, 36, 0.85),
-                    0 -18px 48px 14px rgba(234, 88, 12, 0.65),
-                    0 0 38px 8px rgba(125, 211, 252, 0.45),
-                    inset 0 0 18px rgba(250, 204, 21, 0.65);
+                    -4px -4px 18px 2px rgba(56, 189, 248, 0.85),
+                    4px 4px 20px 2px rgba(250, 204, 21, 0.9),
+                    0 0 10px 2px rgba(255, 255, 255, 0.95),
+                    inset 0 0 12px rgba(56, 189, 248, 0.3);
             }
         }
         @keyframes ssjFlameRise {
-            0% {
-                transform: translateY(2px) scaleX(0.98) scaleY(0.96);
-                opacity: 0.75;
-                filter: blur(6px) hue-rotate(0deg);
+            0%, 100% {
+                transform: translate3d(0, 0px, 0) scale(0.995);
+                opacity: 0.72;
             }
             50% {
-                transform: translateY(-9px) scaleX(1.06) scaleY(1.08);
-                opacity: 1;
-                filter: blur(8px) hue-rotate(-8deg);
-            }
-            100% {
-                transform: translateY(-3px) scaleX(1.02) scaleY(1.02);
-                opacity: 0.82;
-                filter: blur(6px) hue-rotate(6deg);
+                transform: translate3d(0, -2.5px, 0) scale(1.018);
+                opacity: 0.92;
             }
         }
         @keyframes ssjFlameTongues {
             0%, 100% {
-                background-position: 0% 100%, 50% 100%, 100% 100%;
-                opacity: 0.85;
+                transform: translate3d(0, 0, 0) scale(0.99) rotate(0deg);
+                opacity: 0.65;
             }
             50% {
-                background-position: 15% 0%, 65% 10%, 85% 0%;
-                opacity: 1;
+                transform: translate3d(0, -1px, 0) scale(1.015) rotate(0.6deg);
+                opacity: 0.88;
             }
         }
         @keyframes ssjLightningArc1 {
-            0%, 18%, 24%, 62%, 68%, 100% { opacity: 0; }
-            20%, 22%, 64%, 66% { opacity: 1; transform: scale(1.03); }
+            0%, 22%, 28%, 70%, 76%, 100% { opacity: 0; }
+            24%, 26%, 72%, 74% { opacity: 0.95; transform: scale(1.02); }
         }
         @keyframes ssjLightningArc2 {
-            0%, 38%, 44%, 82%, 88%, 100% { opacity: 0; }
-            40%, 42%, 84%, 86% { opacity: 1; transform: scale(0.98) rotate(1deg); }
+            0%, 42%, 48%, 86%, 92%, 100% { opacity: 0; }
+            44%, 46%, 88%, 90% { opacity: 0.95; transform: scale(0.99) rotate(1deg); }
         }
         @keyframes ssjLightningArc3 {
-            0%, 8%, 14%, 50%, 56%, 100% { opacity: 0; }
-            10%, 12%, 52%, 54% { opacity: 1; }
+            0%, 12%, 18%, 56%, 62%, 100% { opacity: 0; }
+            14%, 16%, 58%, 60% { opacity: 0.95; }
         }
         @keyframes ssjBadgePulse {
             0%, 100% {
                 transform: scale(1);
-                box-shadow: 0 0 10px rgba(250, 204, 21, 0.95), 0 0 18px rgba(56, 189, 248, 0.6);
+                box-shadow: 0 0 8px rgba(250, 204, 21, 0.85), 0 0 14px rgba(56, 189, 248, 0.5);
             }
             50% {
-                transform: scale(1.08);
-                box-shadow: 0 0 14px #fff, 0 0 24px rgba(250, 204, 21, 1), 0 0 30px rgba(56, 189, 248, 0.9);
+                transform: scale(1.05);
+                box-shadow: 0 0 12px #fff, 0 0 18px rgba(250, 204, 21, 0.95), 0 0 22px rgba(56, 189, 248, 0.8);
             }
         }
         .ssj-card {
-            border: 2.5px solid #fef08a !important;
-            animation: ssjAuraPulse 1.15s infinite ease-in-out;
+            border: 2px solid #fef08a !important;
+            animation: ssjAuraPulse 2.4s infinite ease-in-out;
             overflow: visible !important;
+            will-change: box-shadow, border-color;
         }
         .ssj-card::before {
             content: "";
             position: absolute;
-            inset: -8px -7px -4px -7px;
-            border-radius: 26px;
-            background:
-                radial-gradient(ellipse at 50% 100%, rgba(254, 240, 138, 0.85) 0%, rgba(250, 204, 21, 0.65) 38%, rgba(245, 158, 11, 0.4) 65%, transparent 82%),
-                conic-gradient(from 0deg, #facc15, #fef08a, #38bdf8, #f59e0b, #fef08a, #38bdf8, #facc15);
+            inset: -4px -3px -3px -3px;
+            border-radius: 22px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.72) 0%, rgba(125, 211, 252, 0.35) 30%, rgba(254, 240, 138, 0.45) 60%, rgba(250, 204, 21, 0.8) 100%);
+            filter: blur(5px);
             z-index: 0;
             pointer-events: none;
-            animation: ssjFlameRise 0.65s infinite alternate ease-in-out;
+            will-change: transform, opacity;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            animation: ssjFlameRise 2.6s infinite ease-in-out;
         }
         .ssj-card::after {
             content: "";
             position: absolute;
-            inset: -12px -5px 0px -5px;
-            border-radius: 26px;
-            background-image:
-                radial-gradient(circle at 20% 20%, rgba(254, 240, 138, 0.75) 0%, transparent 45%),
-                radial-gradient(circle at 80% 15%, rgba(56, 189, 248, 0.7) 0%, transparent 40%),
-                radial-gradient(circle at 50% 0%, rgba(250, 204, 21, 0.85) 0%, transparent 50%);
-            background-size: 120% 120%;
-            filter: blur(5px);
+            inset: -5px -4px -2px -4px;
+            border-radius: 22px;
+            background:
+                radial-gradient(circle at 18% 18%, rgba(56, 189, 248, 0.8) 0%, transparent 45%),
+                radial-gradient(circle at 82% 82%, rgba(250, 204, 21, 0.85) 0%, rgba(245, 158, 11, 0.45) 40%, transparent 65%);
+            filter: blur(4px);
             z-index: 1;
             pointer-events: none;
-            animation: ssjFlameTongues 0.8s infinite alternate ease-in-out;
+            will-change: transform, opacity;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            animation: ssjFlameTongues 3.2s infinite ease-in-out;
         }
         .ssj-menu-card {
-            border: 2px solid #fde047 !important;
-            animation: ssjAuraPulse 1.3s infinite ease-in-out;
+            border: 1.5px solid #fde047 !important;
+            animation: ssjAuraPulse 2.6s infinite ease-in-out;
             position: relative;
             overflow: visible !important;
+            will-change: box-shadow;
         }
         .ssj-menu-card::before {
             content: "";
             position: absolute;
-            inset: -4px;
-            border-radius: 19px;
-            background: linear-gradient(180deg, rgba(254, 240, 138, 0.55) 0%, rgba(250, 204, 21, 0.25) 50%, rgba(56, 189, 248, 0.35) 100%);
-            filter: blur(5px);
+            inset: -3px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.55) 0%, rgba(254, 240, 138, 0.35) 50%, rgba(250, 204, 21, 0.6) 100%);
+            filter: blur(4px);
             z-index: 0;
             pointer-events: none;
-            animation: ssjFlameRise 0.75s infinite alternate ease-in-out;
+            will-change: transform, opacity;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            animation: ssjFlameRise 2.8s infinite ease-in-out;
+        }
+        .ssj-modal-aura {
+            border: 2px solid #fef08a !important;
+            border-radius: 24px !important;
+            animation: ssjAuraPulse 2.4s infinite ease-in-out;
+            position: relative;
+            overflow: visible !important;
+            will-change: box-shadow;
+        }
+        .ssj-modal-aura::before {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border-radius: 26px;
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.65) 0%, rgba(254, 240, 138, 0.45) 50%, rgba(250, 204, 21, 0.75) 100%);
+            filter: blur(5px);
+            z-index: -1;
+            pointer-events: none;
+            will-change: transform, opacity;
+            transform: translate3d(0, 0, 0);
+            backface-visibility: hidden;
+            animation: ssjFlameRise 2.6s infinite ease-in-out;
         }
         .ssj-sparks-layer {
             position: absolute;
@@ -588,10 +600,10 @@
             </button>
 
             <!-- Item Photo -->
-            <div id="hotModalPhotoWrap" class="relative w-full h-64 bg-zinc-900">
-                <img id="hotModalImg" src="" alt="Món HOT" class="w-full h-full object-cover" />
+            <div id="hotModalPhotoWrap" class="relative w-full h-64 bg-zinc-900 rounded-t-3xl overflow-hidden">
+                <img id="hotModalImg" src="" alt="Món HOT" class="w-full h-full object-cover rounded-t-3xl" />
                 <div id="hotModalSsjOverlay"></div>
-                <div class="absolute inset-0 bg-gradient-to-t from-[#10121a] via-transparent to-transparent"></div>
+                <div class="absolute inset-0 bg-gradient-to-t from-[#10121a] via-transparent to-transparent pointer-events-none"></div>
                 <span id="hotModalBadge" class="absolute top-3 left-3 bg-amber-500 text-zinc-950 text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-lg flex items-center gap-1">
                     HOT
                 </span>
@@ -837,7 +849,7 @@
             }, 3000);
         }
 
-        function getSuperSaiyanOverlayHTML() {
+        function getSuperSaiyanOverlayHTML(includeBadge = true) {
             return `
                 <div class="ssj-sparks-layer">
                     <svg class="ssj-spark-svg" viewBox="0 0 210 245" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -849,7 +861,7 @@
                         <path class="ssj-bolt-3" d="M72 240 L108 248 L100 235 L142 244" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </div>
-                <span class="ssj-new-badge">⚡ MỚI</span>
+                ${includeBadge ? '<span class="ssj-new-badge">⚡ MỚI</span>' : ''}
             `;
         }
 
@@ -1033,7 +1045,7 @@
             document.getElementById('hotModalImg').src = item.image_url;
             const overlayEl = document.getElementById('hotModalSsjOverlay');
             if (overlayEl) {
-                overlayEl.innerHTML = isNew ? getSuperSaiyanOverlayHTML() : '';
+                overlayEl.innerHTML = isNew ? getSuperSaiyanOverlayHTML(false) : '';
             }
             const titleEl = document.getElementById('hotModalTitle');
             if (titleEl) {
@@ -1050,7 +1062,6 @@
             const panel = modal?.querySelector('.popup-panel');
             if (panel) {
                 panel.classList.toggle('ssj-modal-aura', isNew);
-                panel.classList.toggle('ssj-menu-card', isNew);
             }
             if (hotModalCloseTimer) {
                 clearTimeout(hotModalCloseTimer);

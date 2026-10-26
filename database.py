@@ -499,14 +499,24 @@ def shuffle_playlist_songs(playlist_id):
     conn.close()
     return True, f"Đã trộn ngẫu nhiên vị trí {len(songs)} bài trong Playlist '{pl['name']}' (phát lần lượt từ trên xuống)!", songs
 
-def add_song_to_playlist(playlist_id, youtube_id, title, thumbnail, duration, channel):
-    """Add a song to a specific playlist"""
+def add_song_to_playlist(playlist_id, youtube_id, title, thumbnail, duration, channel, check_duplicate=False):
+    """Add a song to a specific playlist, with optional duplicate check"""
     try:
         playlist_id = int(playlist_id)
     except (ValueError, TypeError):
         return False, "ID playlist không hợp lệ!", None
     conn = get_connection()
     cursor = conn.cursor()
+
+    if check_duplicate:
+        cursor.execute("SELECT id FROM playlist_songs WHERE playlist_id = ? AND youtube_id = ?", (playlist_id, youtube_id))
+        if cursor.fetchone():
+            cursor.execute("SELECT name FROM playlists WHERE id = ?", (playlist_id,))
+            pl_row = cursor.fetchone()
+            pl_name = pl_row['name'] if pl_row else ''
+            conn.close()
+            return False, f"Bài hát '{title}' đã có sẵn trong Playlist '{pl_name}' rồi!", None
+
     cursor.execute("SELECT COALESCE(MAX(order_num), 0) + 1 FROM playlist_songs WHERE playlist_id = ?", (playlist_id,))
     next_order = cursor.fetchone()[0]
     cursor.execute('''
