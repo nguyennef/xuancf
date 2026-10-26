@@ -896,8 +896,20 @@ def api_save_current_song_to_playlist():
 
     active_queue = database.get_active_queue()
     current_song = active_queue.get('current')
-    if not current_song:
-        return jsonify({'success': False, 'message': 'Hiện không có bài hát nào đang phát trên loa!'}), 400
+
+    if data.get('youtube_id') and data.get('title'):
+        target_song = {
+            'youtube_id': data.get('youtube_id'),
+            'title': data.get('title'),
+            'thumbnail': data.get('thumbnail') or '',
+            'duration': data.get('duration') or '--:--',
+            'channel': data.get('channel') or 'YouTube'
+        }
+    else:
+        target_song = current_song
+
+    if not target_song:
+        return jsonify({'success': False, 'message': 'Hiện không có bài hát nào được chọn!'}), 400
 
     playlists = database.get_all_playlists()
     if not playlists:
@@ -926,11 +938,11 @@ def api_save_current_song_to_playlist():
 
     success, message, new_song = database.add_song_to_playlist(
         playlist_id=playlist_id,
-        youtube_id=current_song.get('youtube_id') or '',
-        title=current_song.get('title') or '',
-        thumbnail=current_song.get('thumbnail') or '',
-        duration=current_song.get('duration') or '--:--',
-        channel=current_song.get('channel') or 'YouTube',
+        youtube_id=target_song.get('youtube_id') or '',
+        title=target_song.get('title') or '',
+        thumbnail=target_song.get('thumbnail') or '',
+        duration=target_song.get('duration') or '--:--',
+        channel=target_song.get('channel') or 'YouTube',
         check_duplicate=True
     )
 
@@ -941,7 +953,7 @@ def api_save_current_song_to_playlist():
     updated_playlists = database.get_all_playlists()
     return jsonify({
         'success': True,
-        'message': f"Đã lưu bài '{current_song.get('title')}' vào Playlist '{target_pl['name']}' thành công!",
+        'message': f"Đã lưu bài '{target_song.get('title')}' vào Playlist '{target_pl['name']}' thành công!",
         'song': new_song,
         'songs': songs,
         'playlist_id': playlist_id,
