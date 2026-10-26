@@ -61,10 +61,12 @@ static/music/*
 !static/music/.gitkeep
 
 # ==========================================
-# File nén cập nhật tạm thời
+# Tool up code nội bộ (Không đẩy lên Git)
 # ==========================================
-*.zip
+up_code.*
 update.zip
+*.zip
+
 
 
 
