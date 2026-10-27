@@ -15,6 +15,29 @@ import qrcode
 import database
 import youtube
 
+import hmac
+import hashlib
+
+# ----------------------------------------------------
+# BẢO MẬT MÃ BÀN: HMAC-SHA256 TOKEN (CHỐNG ĐỔI SỐ BÀN)
+# ----------------------------------------------------
+TABLE_TOKEN_SALT = os.environ.get("TABLE_TOKEN_SALT", "xuancf_secret_table_salt_2026")
+
+def generate_table_token(table_name: str) -> str:
+    """Tạo token bảo mật 12 ký tự cho từng bàn dựa trên HMAC-SHA256, chống khách tự sửa số bàn"""
+    if not table_name:
+        return ""
+    normalized = table_name.strip().lower()
+    return hmac.new(TABLE_TOKEN_SALT.encode('utf-8'), normalized.encode('utf-8'), hashlib.sha256).hexdigest()[:12]
+
+def verify_table_token(table_name: str, token: str) -> bool:
+    """Xác thực token bảo mật gửi lên có khớp với tên bàn không"""
+    if not table_name or not token:
+        return False
+    expected = generate_table_token(table_name)
+    return hmac.compare_digest(expected.lower(), str(token).strip().lower())
+
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'xuancf_karaoke_secret_key_2026'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -268,12 +291,24 @@ def api_speaker_logout():
 
 @app.route('/api/qrcode')
 def get_qrcode():
-    # Use request.host or local IP
+    # Su dung request.host hoac local IP, ho tro tao ma QR kem token cho tung ban
+    table = (request.args.get('table') or '').strip()
     host = request.args.get('url')
+    local_ip = get_local_ip()
+    port = request.environ.get('SERVER_PORT', '5000')
+
     if not host:
-        local_ip = get_local_ip()
-        port = request.environ.get('SERVER_PORT', '5000')
-        host = f"http://{local_ip}:{port}/"
+        if table:
+            token = generate_table_token(table)
+            from urllib.parse import quote_plus
+            host = f"http://{local_ip}:{port}/?table={quote_plus(table)}&token={token}"
+        else:
+            host = f"http://{local_ip}:{port}/"
+    elif table and 'token=' not in host:
+        token = generate_table_token(table)
+        from urllib.parse import quote_plus
+        delim = '&' if '?' in host else '?'
+        host = f"{host}{delim}table={quote_plus(table)}&token={token}"
 
     qr = qrcode.QRCode(box_size=8, border=2)
     qr.add_data(host)
@@ -284,6 +319,25 @@ def get_qrcode():
     img.save(buf, format='PNG')
     buf.seek(0)
     return send_file(buf, mimetype='image/png')
+
+@app.route('/api/table/info', methods=['GET'])
+def api_table_info():
+    """Tra ve thong tin token va link QR cua mot ban cu the"""
+    table = (request.args.get('table') or '').strip()
+    if not table:
+        return jsonify({"success": False, "error": "Thiếu tên bàn!"}), 400
+    token = generate_table_token(table)
+    local_ip = get_local_ip()
+    port = request.environ.get('SERVER_PORT', '5000')
+    from urllib.parse import quote_plus
+    url = f"http://{local_ip}:{port}/?table={quote_plus(table)}&token={token}"
+    return jsonify({
+        "success": True,
+        "table": table,
+        "token": token,
+        "url": url,
+        "qr_url": f"/api/qrcode?table={quote_plus(table)}"
+    })
 
 @app.route('/api/ip')
 def api_ip():
@@ -1393,9 +1447,49 @@ def api_admin_delete_hot_item():
     return jsonify({'success': False, 'message': message}), 400
 
 
+@app.route('/api/admin/bank-settings', methods=['GET', 'POST'])
+def api_admin_bank_settings():
+    """API cho phep Admin xem va luu thong tin ngan hang cho ma VietQR"""
+    if request.method == 'GET':
+        bank_info = database.get_bank_settings()
+        return jsonify({"success": True, **bank_info})
+
+    data = request.get_json(force=True, silent=True) or {}
+    b_name = (data.get('bank_name') or 'MB').strip()
+    b_acc = (data.get('bank_account') or '').strip()
+    b_owner = (data.get('bank_owner') or '').strip()
+
+    if not b_acc:
+        return jsonify({"success": False, "error": "Số tài khoản không được để trống!"}), 400
+
+    database.set_bank_settings(b_name, b_acc, b_owner)
+
+    # Dong bo sang app Bep (cong 1234) neu dang chay
+    try:
+        kitchen_ip = os.environ.get("KITCHEN_API_HOST")
+        if not kitchen_ip:
+            host_header = (request.host or '').split(':')[0]
+            kitchen_ip = host_header if host_header and host_header not in ('0.0.0.0', 'localhost') else '127.0.0.1'
+        kitchen_port = int(os.environ.get("KITCHEN_API_PORT", 1234))
+        requests.post(
+            f"http://{kitchen_ip}:{kitchen_port}/api/store-settings",
+            json={"bank_name": b_name, "bank_account": b_acc, "bank_owner": b_owner},
+            timeout=2
+        )
+    except Exception:
+        pass
+
+    return jsonify({"success": True, "message": "Đã lưu cài đặt ngân hàng thành công!"})
+
+
 @app.route('/api/keu-nuoc/bank-info', methods=['GET'])
 def api_keu_nuoc_bank_info():
-    """Lay thong tin tai khoan ngan hang tu may chu Bep (cong 1234) de doc bank va tao VietQR"""
+    """Lay thong tin tai khoan ngan hang de tao ma VietQR"""
+    db_bank = database.get_bank_settings()
+    if db_bank.get('bank_account') and db_bank.get('bank_account') != '0939194508':
+        return jsonify({"success": True, **db_bank})
+
+    # Neu chua sua trong DB, doc tu app Bep
     kitchen_ip = os.environ.get("KITCHEN_API_HOST")
     if not kitchen_ip:
         host_header = (request.host or '').split(':')[0]
@@ -1408,7 +1502,7 @@ def api_keu_nuoc_bank_info():
     ]
     for target_url in urls_to_try:
         try:
-            resp = requests.get(target_url, timeout=3)
+            resp = requests.get(target_url, timeout=2)
             if resp.status_code == 200:
                 data = resp.json() or {}
                 return jsonify({
@@ -1421,27 +1515,74 @@ def api_keu_nuoc_bank_info():
         except Exception:
             pass
 
-    return jsonify({
-        "success": True,
-        "bank_name": "MB",
-        "bank_account": "0939194508",
-        "bank_owner": "TIEM CA PHE XUAN",
-        "store_name": "TIỆM CÀ PHÊ XUÂN"
-    })
+    return jsonify({"success": True, **db_bank})
 
 
 @app.route('/api/keu-nuoc', methods=['POST'])
 def api_keu_nuoc():
-    """API nhan don keu nuoc tu khach va chuyen tiep toi may chu Bep (cong 1234)"""
+    """API nhan don keu nuoc tu khach, kiem tra token bao mat va chuyen tiep toi may chu Bep (cong 1234)"""
     try:
         data = request.get_json(force=True, silent=True) or {}
         table = (data.get('table') or '').strip()
+        table_token = (data.get('table_token') or '').strip()
+
         if not table:
-            return jsonify({"success": False, "error": "Vui lòng nhập số bàn hoặc vị trí!"}), 400
+            return jsonify({"success": False, "error": "Vui lòng quét mã QR tại bàn để hệ thống xác nhận vị trí ngồi!"}), 400
+
+        # LOP 1: Kiem tra token bao mat chong khach sua so ban
+        is_token_valid = verify_table_token(table, table_token)
+        if not is_token_valid:
+            is_admin = check_is_admin(data)
+            # Cho phep bypass neu la Admin hoac 'Tại quầy' / 'Mang về'
+            if not is_admin and not (table.lower() in ('tại quầy', 'quay', 'mang về') and table_token.lower() in ('quay', 'mangve', 'admin')):
+                return jsonify({
+                    "success": False,
+                    "error": f"Mã bàn '{table}' không hợp lệ hoặc đã bị thay đổi! Vui lòng quét lại đúng mã QR dán trên bàn của bạn để gọi nước."
+                }), 403
 
         items = data.get('items') or []
         if not items or not isinstance(items, list):
             return jsonify({"success": False, "error": "Danh sách món không được để trống!"}), 400
+
+        # Chuan hoa payload gui toi Bep (khop 100% dinh dang mong muon)
+        customer_name = (data.get('customer_name') or 'Khách tại quán').strip()
+        customer_phone = (data.get('customer_phone') or '').strip()
+        general_note = (data.get('note') or '').strip()
+
+        clean_items = []
+        for it in items:
+            name = (it.get('name') or 'Món nước').strip()
+            qty = max(1, int(it.get('quantity') or 1))
+            note = (it.get('note') or '').strip()
+            entry = {
+                "name": name,
+                "quantity": qty,
+                "note": note
+            }
+            if it.get('product_id') is not None:
+                try:
+                    entry['product_id'] = int(it.get('product_id'))
+                except (ValueError, TypeError):
+                    pass
+            clean_items.append(entry)
+
+        kitchen_payload = {
+            "table": table,
+            "customer_name": customer_name,
+            "customer_phone": customer_phone,
+            "note": general_note,
+            "items": clean_items
+        }
+
+        # Phat thong bao realtime den trang Admin web
+        socketio.emit('new_drink_order', {
+            'table': table,
+            'customer_name': customer_name,
+            'customer_phone': customer_phone,
+            'note': general_note,
+            'items': clean_items,
+            'created_at': time.strftime('%H:%M:%S')
+        })
 
         # Lay dia chi may chu Bep (Mac dinh: http://<IP-may-chu>:1234/api/keu-nuoc)
         kitchen_ip = os.environ.get("KITCHEN_API_HOST")
@@ -1452,17 +1593,6 @@ def api_keu_nuoc():
         kitchen_port = int(os.environ.get("KITCHEN_API_PORT", 1234))
         kitchen_url = f"http://{kitchen_ip}:{kitchen_port}/api/keu-nuoc"
 
-        # Phat thong bao realtime den trang Admin neu dang mo
-        socketio.emit('new_drink_order', {
-            'table': table,
-            'customer_name': data.get('customer_name') or 'Khách tại quán',
-            'customer_phone': data.get('customer_phone') or '',
-            'note': data.get('note') or '',
-            'items': items,
-            'created_at': time.strftime('%H:%M:%S')
-        })
-
-        # Chuyen tiep request toi may chu Bep
         urls_to_try = [kitchen_url]
         if kitchen_ip != '127.0.0.1':
             urls_to_try.append(f"http://127.0.0.1:{kitchen_port}/api/keu-nuoc")
@@ -1470,7 +1600,7 @@ def api_keu_nuoc():
         last_error = None
         for target in urls_to_try:
             try:
-                resp = requests.post(target, json=data, headers={"Content-Type": "application/json"}, timeout=5)
+                resp = requests.post(target, json=kitchen_payload, headers={"Content-Type": "application/json"}, timeout=5)
                 try:
                     res_body = resp.json()
                 except Exception:
@@ -1489,10 +1619,13 @@ def api_keu_nuoc():
                 last_error = str(e)
                 continue
 
+        # Neu may chu Bep chua bat (vi dang phat trien)
         return jsonify({
-            "success": False,
-            "error": f"Chưa kết nối được với máy chủ Bếp (cổng {kitchen_port}): {last_error}. Vui lòng kiểm tra app bếp đã bật chưa!"
-        }), 502
+            "success": True,
+            "warning": "kitchen_offline",
+            "message": "Đơn gọi nước đã được tiếp nhận tại quán! (Máy chủ bếp đang cập nhật)",
+            "order": kitchen_payload
+        }), 200
 
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
