@@ -1,0 +1,1782 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xuân CF • Màn Hình Loa & Karaoke</title>
+    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS (Local instant load) -->
+    <script src="/static/js/tailwind.min.js"></script>
+    <!-- Lucide Icons (Local instant load) -->
+    <script src="/static/js/lucide.min.js"></script>
+    <!-- Socket.IO -->
+    <script src="/static/js/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg-base: #07080b;
+            --card-base: #0f1118;
+            --border-base: rgba(255, 255, 255, 0.08);
+            --accent-amber: #f59e0b;
+            --accent-emerald: #10b981;
+        }
+        body {
+            background-color: var(--bg-base);
+            background-image: 
+                radial-gradient(at 50% 0%, rgba(245, 158, 11, 0.04) 0px, transparent 60%),
+                radial-gradient(at 100% 100%, rgba(16, 185, 129, 0.02) 0px, transparent 50%);
+            color: #f4f4f5;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow-x: hidden;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .glass-panel {
+            background: rgba(15, 17, 24, 0.9);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.6), inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        .remote-card {
+            background: #0d0f15;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+        }
+        @keyframes eqWave {
+            0% { height: 15%; }
+            50% { height: 95%; }
+            100% { height: 35%; }
+        }
+        .eq-bar {
+            animation: eqWave 0.9s infinite ease-in-out alternate;
+        }
+        .eq-paused .eq-bar {
+            animation-play-state: paused !important;
+            height: 20% !important;
+        }
+        /* Vinyl Record Styling */
+        .vinyl-disc {
+            border-radius: 50%;
+            background: radial-gradient(circle, #27272a 0%, #18181b 35%, #09090b 65%, #18181b 85%, #09090b 100%);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.9), inset 0 0 0 2px rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        .spin-vinyl {
+            animation: spin 5s linear infinite;
+        }
+        .spin-vinyl-paused {
+            animation-play-state: paused !important;
+        }
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+        /* High-End Studio Volume Slider */
+        input[type=range].speaker-vol-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 5px;
+            border-radius: 9999px;
+            background: linear-gradient(to right, #f59e0b 0%, #f59e0b 100%, #27272a 100%, #27272a 100%);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type=range].speaker-vol-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        input[type=range].speaker-vol-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+    </style>
+    <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body class="min-h-screen flex flex-col justify-between p-4 lg:p-6 select-none" onclick="unlockAudioOnce(event)">
+
+    <!-- Dual-Deck Audio Engine for Instant Zero-Delay Preloading & Crossfading -->
+    <audio id="audioA" preload="auto" class="hidden"></audio>
+    <audio id="audioB" preload="auto" class="hidden"></audio>
+    <!-- Hidden YouTube Iframe Player for 100% Bot-Free & Cookie-Free Playback on Tablets/Screens -->
+    <div id="ytPlayerContainer" style="position: fixed; top: -9999px; left: -9999px; width: 320px; height: 240px; pointer-events: none; z-index: -999;">
+        <div id="ytPlayer"></div>
+    </div>
+
+    <!-- Top Bar: Studio Console Header -->
+    <header class="flex items-center justify-between mb-4">
+        <div class="flex items-center gap-3">
+            <div class="w-11 h-11 rounded-2xl bg-zinc-900 border border-white/10 flex items-center justify-center text-amber-400 shadow-inner">
+                <i data-lucide="disc-3" class="w-6 h-6 animate-spin-slow"></i>
+            </div>
+            <div>
+                <div class="flex items-center gap-2.5">
+                    <h1 class="font-extrabold text-lg lg:text-xl tracking-tight text-white uppercase">
+                        XUÂN CF • SOUND SYSTEM
+                    </h1>
+                    <span class="text-[9px] font-mono tracking-widest font-semibold px-2 py-0.5 bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        HI-FI STEREO
+                    </span>
+                </div>
+                <p class="text-xs text-zinc-400">
+                    Phát nhạc tự động quán • Chuyển bài mượt mà 5s cuối
+                </p>
+            </div>
+        </div>
+
+        <!-- Speaker Status & Clock -->
+        <div class="flex items-center gap-3">
+            <div id="liveClock" class="font-mono text-sm text-zinc-300 bg-zinc-900/90 px-3.5 py-1.5 rounded-xl border border-white/10 shadow-inner">
+                --:--
+            </div>
+            <button onclick="toggleFullScreen()" class="glass-panel hover:bg-zinc-800 text-zinc-300 p-2 rounded-xl transition" title="Toàn màn hình">
+                <i data-lucide="maximize" class="w-4 h-4"></i>
+            </button>
+            <button onclick="lockSpeaker()" class="glass-panel hover:bg-rose-950/40 text-rose-300 border border-rose-500/30 p-2 rounded-xl transition" title="Khóa màn hình Loa">
+                <i data-lucide="lock" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 items-start">
+        
+        <!-- Main Music Showcase & Remote Controller Column (8 cols) -->
+        <div class="lg:col-span-8 flex flex-col gap-5">
+
+            <!-- Music Stage: Turntable Showcase Card -->
+            <div class="glass-panel rounded-3xl p-6 lg:p-7 relative overflow-hidden shadow-2xl bg-[#0c0e15]">
+                
+                <!-- Subtle warm studio ambience (Not bright AI neon) -->
+                <div class="absolute -top-32 -left-32 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                <!-- Idle Screen (When no song is playing) -->
+                <div id="idleOverlay" class="absolute inset-0 bg-zinc-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-20">
+                    <div class="w-16 h-16 rounded-full bg-zinc-900 border border-white/10 flex items-center justify-center mb-4">
+                        <i data-lucide="disc-3" class="w-8 h-8 text-zinc-500"></i>
+                    </div>
+                    <h3 class="text-lg lg:text-xl font-bold text-white mb-1.5">Đang chờ bài hát tiếp theo</h3>
+                    <p class="text-zinc-400 text-xs lg:text-sm max-w-md">Hãy dùng điện thoại quét mã QR tại bàn để chọn bài hát bạn muốn nghe ngay bây giờ!</p>
+                    
+                    <button onclick="unlockAudioOnce(event)" class="mt-5 bg-amber-500 hover:bg-amber-400 text-zinc-950 font-extrabold px-6 py-2.5 rounded-full text-xs shadow-xl flex items-center gap-2 transition active:scale-95 uppercase tracking-wider font-mono">
+                        <i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i>
+                        <span>Bật âm thanh loa</span>
+                    </button>
+                </div>
+
+                <!-- Active Song Layout: Vinyl Record & Sleeve Artwork Layout -->
+                <div class="relative z-10 flex flex-col sm:flex-row items-center gap-6 lg:gap-8">
+                    
+                    <!-- Vinyl & Jacket Artwork Presentation -->
+                    <div class="relative flex-shrink-0 flex items-center">
+                        <!-- Spinning Vinyl Record peeking from sleeve -->
+                        <div id="vinylRecord" class="vinyl-disc absolute w-36 h-36 sm:w-44 sm:h-44 lg:w-48 lg:h-48 right-[-24px] top-1/2 -translate-y-1/2 spin-vinyl spin-vinyl-paused transition-all duration-700">
+                            <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-amber-500/90 border-4 border-black flex items-center justify-center">
+                                <span class="w-2.5 h-2.5 rounded-full bg-black"></span>
+                            </div>
+                        </div>
+
+                        <!-- Album Jacket Sleeve Cover -->
+                        <div class="relative z-10 w-36 h-36 sm:w-44 sm:h-44 lg:w-48 lg:h-48 rounded-2xl overflow-hidden shadow-2xl border border-white/15 bg-zinc-900 flex-shrink-0">
+                            <img 
+                                id="nowPlayingThumb" 
+                                src="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&h=500&fit=crop" 
+                                alt="Ảnh bài hát" 
+                                class="w-full h-full object-cover" 
+                                onerror="this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&h=500&fit=crop'"
+                            />
+                            <div class="absolute bottom-2 right-2 bg-black/85 backdrop-blur-md text-[9px] font-mono text-zinc-300 px-2 py-0.5 rounded border border-white/10 shadow">
+                                HQ 44.1kHz
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Song Details & Equalizer -->
+                    <div class="min-w-0 flex-1 w-full flex flex-col justify-between py-1">
+                        
+                        <!-- Badges Row -->
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <span id="nowPlayingBadge" class="text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                                Đang phát
+                            </span>
+                            <div id="transitionBadge" class="hidden text-[10px] font-mono uppercase font-bold text-amber-300 bg-amber-950/80 border border-amber-500/40 px-2.5 py-1 rounded-lg animate-pulse flex items-center gap-1.5">
+                                <i data-lucide="radio" class="w-3 h-3 text-amber-400"></i>
+                                <span>Đang chuyển bài...</span>
+                            </div>
+                            <span id="nowPlayingSourceBadge" class="text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg bg-zinc-900 text-zinc-300 border border-white/10 truncate max-w-[240px]">
+                                Playlist Quán
+                            </span>
+                        </div>
+
+                        <!-- Song Title -->
+                        <h2 id="nowPlayingTitle" class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white truncate tracking-tight mb-1" title="Chưa có bài hát">
+                            Chưa có bài hát
+                        </h2>
+
+                        <!-- Channel / Orderer -->
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-400 mb-4">
+                            <span id="nowPlayingChannel" class="truncate flex items-center gap-1 text-zinc-300 font-medium">
+                                <i data-lucide="music-2" class="w-3.5 h-3.5 text-amber-400"></i>
+                                YouTube Audio
+                            </span>
+                            <span class="flex items-center gap-1 text-zinc-200 font-medium">
+                                <i data-lucide="mic-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+                                <span id="nowPlayingUserLabel">Order bởi:</span>
+                                <strong id="nowPlayingUser" class="text-amber-300 font-semibold font-mono">--</strong>
+                            </span>
+                        </div>
+
+                        <!-- Sound Equalizer Waves Animation & Timeline -->
+                        <div class="flex items-center justify-between pt-2 border-t border-white/5">
+                            <div id="equalizerContainer" class="flex items-end gap-1.5 h-5">
+                                <span class="eq-bar w-1 rounded-full bg-emerald-400" style="animation-delay: 0.1s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-emerald-400" style="animation-delay: 0.4s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-amber-400" style="animation-delay: 0.2s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-amber-400" style="animation-delay: 0.6s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-amber-400" style="animation-delay: 0.3s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-emerald-400" style="animation-delay: 0.5s"></span>
+                                <span class="eq-bar w-1 rounded-full bg-emerald-400" style="animation-delay: 0.25s"></span>
+                            </div>
+                            
+                            <!-- Timeline info -->
+                            <div class="flex items-center gap-1.5 text-xs font-mono text-zinc-400">
+                                <span id="currentTimeDisplay" class="text-white font-bold">00:00</span>
+                                <span>/</span>
+                                <span id="durationDisplay">--:--</span>
+                            </div>
+                        </div>
+
+                        <!-- Progress Bar (Clickable / Interactive) -->
+                        <div id="songProgressTrack" onclick="handleSeek(event)" class="w-full bg-zinc-800 rounded-full h-1.5 mt-2 cursor-pointer relative overflow-hidden transition-all">
+                            <div id="songProgressBar" class="bg-amber-400 h-full rounded-full transition-all duration-300 w-0"></div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Remote Speaker Controller Card (Studio Hardware Feel) -->
+            <div class="remote-card rounded-2xl p-5 border border-white/10 shadow-2xl flex flex-col justify-between">
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-300 flex items-center gap-2 font-mono">
+                            <i data-lucide="sliders" class="w-4 h-4 text-amber-400"></i>
+                            ĐIỀU KHIỂN LOA TỪ XA
+                        </h3>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    </div>
+                    <p class="text-xs text-zinc-400 mb-4">Các lệnh điều khiển trực tiếp trên dàn âm thanh Loa quán.</p>
+                </div>
+
+                <div class="space-y-3.5">
+                    <!-- 2 Control Buttons (Play/Pause Toggle + Skip) -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <button id="speakerPlayPauseBtn" onclick="speakerTogglePlayPause(event)" class="bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-white/5 hover:border-amber-500/40 py-3 rounded-xl text-xs font-extrabold font-mono flex items-center justify-center gap-2 transition active:scale-95 shadow">
+                            <i data-lucide="pause" class="w-3.5 h-3.5"></i>
+                            <span>TẠM DỪNG</span>
+                        </button>
+                        <button id="speakerSkipBtn" onclick="skipSong(true, event)" class="bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-white/5 hover:border-white/20 py-3 rounded-xl text-xs font-extrabold font-mono flex items-center justify-center gap-2 transition active:scale-95 shadow">
+                            <i data-lucide="skip-forward" class="w-3.5 h-3.5"></i>
+                            <span>BỎ QUA</span>
+                        </button>
+                    </div>
+
+                    <!-- Sleek Volume Slider -->
+                    <div class="bg-zinc-900/80 p-3 rounded-xl border border-white/5 flex items-center gap-3">
+                        <i data-lucide="volume-2" class="w-4 h-4 text-zinc-400 flex-shrink-0"></i>
+                        <input 
+                            type="range" 
+                            id="speakerVolumeSlider" 
+                            min="0" 
+                            max="100" 
+                            value="100" 
+                            oninput="setSpeakerVolume(this.value, true)" 
+                            class="speaker-vol-slider" 
+                        />
+                        <span id="speakerVolPercent" class="text-xs font-mono font-bold text-amber-300 min-w-[42px] text-right">100%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Sidebar: Audio Visualizer & Queue Column (4 cols) -->
+        <div class="lg:col-span-4 flex flex-col gap-4">
+            
+            <!-- Sound System Status Card with Live QR -->
+            <div class="glass-panel rounded-2xl p-4 border border-white/10 shadow-2xl flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-[11px] font-bold font-mono text-zinc-300 uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="radio" class="w-3.5 h-3.5 text-amber-400"></i>
+                        QUÉT MÃ ĐỂ CHỌN BÀI
+                    </span>
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                </div>
+
+                <div class="flex items-center gap-3.5 py-1">
+                    <div class="p-1 rounded-xl bg-white shadow-md flex-shrink-0 border border-white/20">
+                        <img src="/api/qrcode" alt="QR Code" class="w-20 h-20 object-contain" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <div class="text-[11px] text-zinc-400 font-medium">Chế độ phát:</div>
+                        <div id="speakerModeText" class="text-xs font-bold text-white truncate mt-0.5">Tự động (Ưu tiên khách)</div>
+                        <div class="text-[11px] text-emerald-400 flex items-center gap-1.5 mt-1 font-mono">
+                            <i data-lucide="volume-2" class="w-3.5 h-3.5"></i>
+                            <span id="speakerVolText">Âm lượng: 100%</span>
+                        </div>
+                        <p class="text-[10px] text-zinc-500 mt-1 font-mono">Mỗi khách chọn 1 bài</p>
+                    </div>
+                </div>
+
+                <div class="mt-3 pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-400 font-mono">
+                    <span class="flex items-center gap-1">
+                        <i data-lucide="shield-check" class="w-3.5 h-3.5 text-amber-400"></i>
+                        Admin điều khiển
+                    </span>
+                    <span class="text-zinc-300 font-semibold">Crossfade 3.8s</span>
+                </div>
+            </div>
+
+            <!-- Upcoming Queue List -->
+            <div class="glass-panel rounded-2xl p-4 flex-1 border border-white/10 flex flex-col">
+                <div class="flex items-center justify-between pb-3 border-b border-white/5">
+                    <h3 class="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                        <i data-lucide="list-music" class="w-4 h-4 text-emerald-400"></i>
+                        Hàng đợi khách chọn
+                    </h3>
+                    <span id="waitingCountBadge" class="text-xs bg-zinc-900 border border-white/10 text-amber-300 px-2.5 py-0.5 rounded-full font-mono font-bold">0</span>
+                </div>
+
+                <div id="speakerWaitingList" class="space-y-2 mt-3 max-h-[480px] overflow-y-auto pr-1 flex-1">
+                    <div class="text-center py-6 text-xs text-zinc-500 font-mono">
+                        Chưa có bài nào trong hàng đợi
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- Pure Audio Engine Script with Dual-Deck Zero-Delay Preloading & Crossfading -->
+    <script>
+        
+        // ============================================================
+        // YOUTUBE OFFICIAL IFRAME ENGINE (100% BOT-FREE & COOKIE-FREE)
+        // ============================================================
+        let ytPlayer = null;
+        let isYtReady = false;
+        let isCurrentTrackYouTube = false;
+        let ytProgressTimer = null;
+
+        window.onYouTubeIframeAPIReady = function() {
+            try {
+                ytPlayer = new YT.Player('ytPlayer', {
+                    height: '240',
+                    width: '320',
+                    playerVars: {
+                        'autoplay': 1,
+                        'controls': 0,
+                        'rel': 0,
+                        'playsinline': 1,
+                        'enablejsapi': 1,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': () => {
+                            isYtReady = true;
+                            console.log('[YouTube Iframe Engine] Sẵn sàng phát nhạc trên Tablet!');
+                        },
+                        'onStateChange': onYtPlayerStateChange,
+                        'onError': onYtPlayerError
+                    }
+                });
+            } catch (e) {
+                console.warn('[YouTube Iframe] Init error:', e);
+            }
+        };
+
+        function onYtPlayerStateChange(event) {
+            if (!isCurrentTrackYouTube) return;
+            if (event.data === YT.PlayerState.PLAYING) {
+                setPlaybackUIState(true);
+                startXProgress();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                setPlaybackUIState(false);
+                stopXProgress();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                console.log('[YouTube Iframe] Track ended naturally');
+                stopXProgress();
+                advanceToNextSong(false, 'yt.onended');
+            }
+        }
+
+        function onYtPlayerError(event) {
+            console.warn('[YouTube Iframe] Error code:', event.data);
+            if (isCurrentTrackYouTube) {
+                const badge = document.getElementById('transitionBadge');
+                if (badge) {
+                    badge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3 text-rose-400"></i><span>Video hạn chế, đang chuyển bài tiếp...</span>`;
+                    badge.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+                setTimeout(() => advanceToNextSong(true, 'yt.error'), 1800);
+            }
+        }
+
+        function startXProgress() {
+            stopXProgress();
+            ytProgressTimer = setInterval(() => {
+                if (!isCurrentTrackYouTube || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+                try {
+                    const ct = ytPlayer.getCurrentTime() || 0;
+                    const dur = ytPlayer.getDuration() || 0;
+                    if (dur > 0) {
+                        const pct = Math.min(100, (ct / dur) * 100);
+                        const pb = document.getElementById('songProgressBar');
+                        if (pb) pb.style.width = pct + '%';
+                        const currEl = document.getElementById('currentTimeDisplay');
+                        const durEl = document.getElementById('durationDisplay');
+                        if (currEl) currEl.textContent = formatTime(ct);
+                        if (durEl && (!durEl.textContent || durEl.textContent === '--:--' || durEl.textContent === 'YouTube')) {
+                            durEl.textContent = formatTime(dur);
+                        }
+                    }
+                } catch(e) {}
+            }, 450);
+        }
+
+        function stopXProgress() {
+            if (ytProgressTimer) {
+                clearInterval(ytProgressTimer);
+                ytProgressTimer = null;
+            }
+        }
+
+        const audioA = document.getElementById('audioA');
+        const audioB = document.getElementById('audioB');
+        audioA._loadedYid = null;
+        audioB._loadedYid = null;
+        let currentDeck = 'A';
+
+        function getActiveAudio() { return currentDeck === 'A' ? audioA : audioB; }
+        function getStandbyAudio() { return currentDeck === 'A' ? audioB : audioA; }
+
+        function detachAllEvents(el) {
+            if (!el) return;
+            el.onplay = null; el.onpause = null; el.onerror = null;
+            el.onended = null; el.ontimeupdate = null;
+        }
+
+        let currentSong = null;
+        let preloadedSong = null;
+        let preloadedStreamUrl = null;
+        let preloadingYid = null;
+        let isTransitioning = false;
+        let transitioningSongId = null;
+        let transitionSeq = 0;
+        let waitingList = [];
+        let currentPlaybackMode = 'auto_priority';
+        let activePlaylistInfo = null;
+        let isAudioUnlocked = false;
+        let isOutroFading = false;
+        let latestQueueData = null;
+        let baseVolume = 100;
+        let fadeIntervalA = null;
+        let fadeIntervalB = null;
+        let pendingPreloadSong = null;
+
+        let speakerVolumeDragUntil = 0;
+        let speakerVolPostTimer = null;
+
+        function hardStopDeck(el) {
+            if (!el) return;
+            if (el === audioA && fadeIntervalA) {
+                clearInterval(fadeIntervalA);
+                fadeIntervalA = null;
+            }
+            if (el === audioB && fadeIntervalB) {
+                clearInterval(fadeIntervalB);
+                fadeIntervalB = null;
+            }
+            el._isFadingOut = false;
+            detachAllEvents(el);
+            try {
+                el.volume = 0;
+                el.muted = true;
+                el.pause();
+                el.removeAttribute('src');
+                el._loadedYid = null;
+                el.load();
+            } catch (e) {}
+        }
+
+        function cancelFade(el) {
+            if (el === audioA && fadeIntervalA) {
+                clearInterval(fadeIntervalA);
+                fadeIntervalA = null;
+            }
+            if (el === audioB && fadeIntervalB) {
+                clearInterval(fadeIntervalB);
+                fadeIntervalB = null;
+            }
+            if (el && el._isFadingOut) {
+                hardStopDeck(el);
+            }
+        }
+
+        // Clock
+        function updateClock() {
+            const clockEl = document.getElementById('liveClock');
+            if (clockEl) clockEl.textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ============================================================
+        // SPEAKER AUTHENTICATION & SECURITY INTERCEPTOR
+        // ============================================================
+        function getSpeakerPass() {
+            return localStorage.getItem('xuancf_speaker_pass') || sessionStorage.getItem('xuancf_speaker_pass') || '';
+        }
+
+        let isSpeakerAuthed = (localStorage.getItem('xuancf_speaker_authed') === 'true' || sessionStorage.getItem('xuancf_speaker_authed') === 'true') && !!getSpeakerPass();
+
+        function toggleSpeakerPasswordVisibility() {
+            const input = document.getElementById('speakerPassInput');
+            const icon = document.getElementById('eyeIconSpeaker');
+            if (!input) return;
+            if (input.type === 'password') {
+                input.type = 'text';
+                if (icon) icon.setAttribute('data-lucide', 'eye-off');
+            } else {
+                input.type = 'password';
+                if (icon) icon.setAttribute('data-lucide', 'eye');
+            }
+            lucide.createIcons();
+        }
+
+        // Intercept fetch calls to automatically attach X-Speaker-Pass header & handle 401
+        const _nativeFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            if (typeof url === 'string' && url.startsWith('/api/')) {
+                options = options || {};
+                const pass = getSpeakerPass();
+                if (pass) {
+                    if (options.headers instanceof Headers) {
+                        options.headers.set('X-Speaker-Pass', pass);
+                    } else if (typeof options.headers === 'object') {
+                        options.headers['X-Speaker-Pass'] = pass;
+                    } else {
+                        options.headers = { 'X-Speaker-Pass': pass };
+                    }
+                }
+            }
+            const res = await _nativeFetch.apply(this, [url, options]);
+            if (res.status === 401 && typeof url === 'string' && (url.includes('/api/speaker/') || url.includes('/api/queue/')) && !url.includes('verify_pass')) {
+                localStorage.removeItem('xuancf_speaker_authed');
+                localStorage.removeItem('xuancf_speaker_pass');
+                sessionStorage.removeItem('xuancf_speaker_authed');
+                sessionStorage.removeItem('xuancf_speaker_pass');
+                isSpeakerAuthed = false;
+                const modal = document.getElementById('speakerPassModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    const inp = document.getElementById('speakerPassInput');
+                    if (inp) { inp.value = ''; inp.focus(); }
+                }
+            }
+            return res;
+        };
+
+        // ============================================================
+        // SOCKET.IO EVENTS
+        // ============================================================
+        const socket = io();
+
+        socket.on('connect', () => {
+            console.log('Speaker connected to WebSocket');
+            if (isSpeakerAuthed) {
+                socket.emit('request_queue');
+            }
+        });
+
+        socket.on('queue_updated', (data) => {
+            if (!isSpeakerAuthed) return;
+            handleQueueUpdate(data);
+        });
+
+        socket.on('customer_song_inserted', (data) => {
+            if (!isSpeakerAuthed) return;
+            console.log('[Socket] customer_song_inserted:', data?.song?.title);
+            if (data && data.song && !isTransitioning) {
+                prepareNextSong(data.song);
+            }
+        });
+
+        socket.on('playback_mode_changed', (data) => {
+            if (data && data.playback_mode) {
+                currentPlaybackMode = data.playback_mode;
+                activePlaylistInfo = data.active_playlist;
+                updateSpeakerModeText();
+            }
+        });
+
+        socket.on('play_song', (data) => {
+            if (!isSpeakerAuthed) return;
+            if (!data || !data.song) {
+                if (!isTransitioning) showIdle();
+                return;
+            }
+            const active = getActiveAudio();
+            // If already playing this song, just sync metadata
+            if (currentSong &&
+                currentSong.id === data.song.id &&
+                active.src &&
+                active._loadedYid === data.song.youtube_id) {
+                currentSong = data.song;
+                return;
+            }
+            // If already in the middle of transitioning to this EXACT song, avoid duplicating transition
+            if (isTransitioning && transitioningSongId === data.song.id) {
+                console.log('[Socket play_song] Ignored: already transitioning to this song');
+                return;
+            }
+            // Authoritative server command (e.g. Customer song cut-in, Admin "Phát ngay", or scheduled song)
+            executeTransitionToSong(data.song, true, 'socket_play_song');
+        });
+
+        socket.on('speaker_cmd', (data) => {
+            if (!isSpeakerAuthed) return;
+            handleRemoteCommand(data);
+        });
+
+        socket.on('speaker_state_sync', (state) => {
+            if (!isSpeakerAuthed || !state) return;
+            if (state.volume !== undefined && state.source !== 'speaker' && Date.now() > speakerVolumeDragUntil) {
+                setSpeakerVolume(state.volume, false);
+            }
+        });
+
+        socket.on('schedule_triggered', (data) => {
+            console.log('Schedule triggered:', data);
+            const badge = document.getElementById('transitionBadge');
+            if (badge) {
+                badge.innerHTML = `<i data-lucide="clock" class="w-3 h-3 text-amber-400"></i><span>⏰ Đã đến giờ hẹn: Ưu tiên phát tiếp theo!</span>`;
+                badge.classList.remove('hidden');
+                lucide.createIcons();
+                setTimeout(() => badge?.classList.add('hidden'), 8000);
+            }
+            fetchQueue();
+        });
+
+        // ============================================================
+        // PRELOAD SYSTEM
+        // ============================================================
+
+        async function prepareNextSong(songToPreload) {
+            if (!songToPreload || !songToPreload.youtube_id) return;
+            if (currentSong && currentSong.youtube_id === songToPreload.youtube_id) return;
+
+            const yid = songToPreload.youtube_id;
+            const standby = getStandbyAudio();
+
+            // CRITICAL: Do NOT interrupt standby deck while it is still fading out from the previous track!
+            if (standby._isFadingOut) {
+                pendingPreloadSong = songToPreload;
+                console.log('[Preload] Deferred preload while standby finishes crossfade:', songToPreload.title);
+                return;
+            }
+            pendingPreloadSong = null;
+
+            // Already preloaded correctly?
+            if (preloadedSong &&
+                preloadedSong.youtube_id === yid &&
+                preloadedStreamUrl &&
+                standby._loadedYid === yid &&
+                standby.src) {
+                return;
+            }
+
+            // Invalidate stale preload immediately
+            preloadedSong = null;
+            preloadedStreamUrl = null;
+            preloadingYid = yid;
+            cancelFade(standby);
+            detachAllEvents(standby);
+            standby.pause();
+            standby.removeAttribute('src');
+            standby._loadedYid = null;
+
+            console.log('[Preload] Fetching stream for:', songToPreload.title, yid);
+
+            let streamUrl = null;
+            const isLocal = yid.startsWith('/static/') || yid.includes('.mp3') || yid.includes('.m4a') || yid.includes('.wav');
+
+            if (isLocal) {
+                streamUrl = yid;
+            } else {
+                try {
+                    const res = await fetch(`/api/audio_stream/${yid}`);
+                    const data = await res.json();
+                    if (data.success && data.audio && data.audio.url) {
+                        streamUrl = data.audio.url;
+                    }
+                } catch (e) {
+                    console.warn('[Preload] Failed:', e);
+                }
+            }
+
+            // Stale check: if another preload or transition started while we were fetching, discard
+            const currentStandby = getStandbyAudio();
+            if (preloadingYid !== yid || isTransitioning || currentStandby._isFadingOut) {
+                if ( currentStandby._isFadingOut ) {
+                    pendingPreloadSong = songToPreload;
+                }
+                console.log('[Preload] Discarded stale/conflicting preload result for:', yid);
+                return;
+            }
+
+            if (!streamUrl) {
+                console.warn('[Preload] No stream URL obtained for:', yid);
+                return;
+            }
+
+            // Load into standby deck
+            detachAllEvents(currentStandby);
+            currentStandby.pause();
+            currentStandby.volume = 0;
+            currentStandby.src = streamUrl;
+            currentStandby._loadedYid = yid;
+            currentStandby.preload = 'auto';
+            currentStandby.onerror = () => {
+                console.warn('[Preload] Standby preload error');
+                preloadedSong = null;
+                preloadedStreamUrl = null;
+                currentStandby._loadedYid = null;
+            };
+            currentStandby.load();
+
+            preloadedStreamUrl = streamUrl;
+            preloadedSong = songToPreload;
+            console.log('[Preload] Standby loading for:', songToPreload.title, '| YID:', yid);
+        }
+
+        // ============================================================
+        // AUDIO EVENTS
+        // ============================================================
+
+        let audioRetryCount = 0;
+        function attachActiveAudioEvents(audioEl) {
+            detachAllEvents(audioEl);
+            audioEl.onplay = () => { audioRetryCount = 0; setPlaybackUIState(true); };
+            audioEl.onpause = () => setPlaybackUIState(false);
+            audioEl.onerror = async () => {
+                if (audioEl !== getActiveAudio()) return;
+                console.warn('[Audio] Error on active deck:', audioEl.error);
+                if (isTransitioning) return;
+                const errSeq = transitionSeq;
+
+                // Auto-retry once with fresh stream URL in case GoogleVideo CDN token expired
+                if (audioRetryCount === 0 && audioEl._loadedYid && !audioEl._loadedYid.startsWith('/static/')) {
+                    audioRetryCount++;
+                    console.log('[Audio] Retrying with fresh stream URL for:', audioEl._loadedYid);
+                    try {
+                        const res = await fetch(`/api/audio_stream/${audioEl._loadedYid}?fresh=1`);
+                        const data = await res.json();
+                        if (errSeq !== transitionSeq || audioEl !== getActiveAudio()) return;
+                        if (data.success && data.audio && data.audio.url) {
+                            audioEl.src = data.audio.url;
+                            audioEl.load();
+                            audioEl.play().then(() => setPlaybackUIState(true)).catch(() => {});
+                            return;
+                        }
+                    } catch (e) {
+                        console.warn('[Audio] Fresh retry failed:', e);
+                    }
+                }
+
+                if (errSeq !== transitionSeq || audioEl !== getActiveAudio() || isTransitioning) return;
+                audioRetryCount = 0;
+                const badge = document.getElementById('transitionBadge');
+                if (badge) {
+                    badge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3 text-rose-400"></i><span>Lỗi kết nối âm thanh, đang chuyển bài...</span>`;
+                    badge.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+                setTimeout(() => {
+                    if (errSeq === transitionSeq && !isTransitioning) {
+                        advanceToNextSong(true, 'audio_error');
+                    }
+                }, 1500);
+            };
+            audioEl.onended = () => {
+                if (audioEl !== getActiveAudio() || isTransitioning) return;
+                console.log('[Audio] Ended naturally');
+                advanceToNextSong(false, 'audio.onended');
+            };
+            audioEl.ontimeupdate = () => {
+                if (audioEl !== getActiveAudio()) {
+                    hardStopDeck(audioEl);
+                    return;
+                }
+                const otherDeck = getStandbyAudio();
+                if (otherDeck && !otherDeck.paused) {
+                    otherDeck.pause();
+                    otherDeck.volume = 0;
+                }
+                if (!audioEl.duration || isNaN(audioEl.duration)) return;
+                const ct = audioEl.currentTime || 0;
+                const dur = audioEl.duration || 0;
+
+                const pct = Math.min(100, (ct / dur) * 100);
+                const pb = document.getElementById('songProgressBar');
+                if (pb) pb.style.width = pct + '%';
+
+                const currEl = document.getElementById('currentTimeDisplay');
+                const durEl = document.getElementById('durationDisplay');
+                if (currEl) currEl.textContent = formatTime(ct);
+                if (durEl && (!durEl.textContent || durEl.textContent === '--:--' || durEl.textContent === 'MP3' || durEl.textContent === 'Audio MP3' || durEl.textContent === 'YouTube')) {
+                    durEl.textContent = formatTime(dur);
+                }
+
+                // === SEAMLESS DUAL-DECK PRELOAD & OUTRO ===
+                if (dur > 10) {
+                    const timeLeft = dur - ct;
+                    if (timeLeft <= 18.0 && !preloadedSong && !isTransitioning) {
+                        const nextToPreload = latestQueueData?.next_up || (waitingList.length > 0 ? waitingList[0] : null);
+                        if (nextToPreload) {
+                            prepareNextSong(nextToPreload);
+                        }
+                    }
+
+                    if (timeLeft <= 1.2 && timeLeft > 0.2 && !isOutroFading && !isTransitioning) {
+                        isOutroFading = true;
+                        console.log(`[Outro] Triggering clean track transition for "${currentSong?.title}" (${timeLeft.toFixed(1)}s remaining)`);
+                        advanceToNextSong(false, 'crossfade_5s');
+                    }
+                }
+            };
+        }
+
+        // ============================================================
+        // DUAL-DECK SEAMLESS PLAYBACK & TRANSITION ENGINE
+        // Guarantees audio and artwork are ALWAYS 100% in sync.
+        // ============================================================
+
+        function setSkipButtonDisabled(disabled) {
+            const btn = document.getElementById('speakerSkipBtn');
+            if (btn) {
+                if (disabled) {
+                    btn.classList.add('opacity-40', 'pointer-events-none');
+                } else {
+                    btn.classList.remove('opacity-40', 'pointer-events-none');
+                }
+            }
+        }
+
+        async function advanceToNextSong(isForce = false, reason = 'auto') {
+            if (isTransitioning) {
+                console.log(`[Advance] Already transitioning, ignoring: ${reason}`);
+                return;
+            }
+            const mySeq = ++transitionSeq;
+            isTransitioning = true;
+            setSkipButtonDisabled(true);
+            console.log(`[Advance #${mySeq}] Triggered (force=${isForce}, reason=${reason})`);
+
+            const badge = document.getElementById('transitionBadge');
+            if (badge) {
+                badge.innerHTML = `<i data-lucide="sparkles" class="w-3 h-3 text-purple-400 animate-spin"></i><span>Đang chuyển bài...</span>`;
+                badge.classList.remove('hidden');
+                lucide.createIcons();
+            }
+
+            try {
+                const res = await fetch('/api/speaker/next', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: isForce })
+                });
+                const data = await res.json();
+
+                if (mySeq !== transitionSeq) {
+                    console.log(`[Advance #${mySeq}] Discarded: newer sequence active`);
+                    return;
+                }
+
+                if (data.success && data.song) {
+                    await executeTransitionToSong(data.song, isForce, reason, data.queue);
+                } else {
+                    showIdle();
+                    isTransitioning = false;
+                    setSkipButtonDisabled(false);
+                }
+            } catch (err) {
+                console.error('[Advance] Error:', err);
+                if (mySeq === transitionSeq) {
+                    isTransitioning = false;
+                    setSkipButtonDisabled(false);
+                    document.getElementById('transitionBadge')?.classList.add('hidden');
+                }
+            }
+        }
+
+        function waitForAudioReady(audioEl, timeoutMs = 4000) {
+            return new Promise((resolve) => {
+                if (!audioEl) { resolve(false); return; }
+                if (audioEl.readyState >= 2) { resolve(true); return; }
+                let settled = false;
+                const cleanup = () => {
+                    audioEl.removeEventListener('canplay', onOk);
+                    audioEl.removeEventListener('loadeddata', onOk);
+                    audioEl.removeEventListener('error', onErr);
+                    clearTimeout(timer);
+                };
+                const onOk = () => {
+                    if (!settled) { settled = true; cleanup(); resolve(true); }
+                };
+                const onErr = () => {
+                    if (!settled) { settled = true; cleanup(); resolve(false); }
+                };
+                const timer = setTimeout(() => {
+                    if (!settled) { settled = true; cleanup(); resolve(true); }
+                }, timeoutMs);
+
+                audioEl.addEventListener('canplay', onOk, { once: true });
+                audioEl.addEventListener('loadeddata', onOk, { once: true });
+                audioEl.addEventListener('error', onErr, { once: true });
+            });
+        }
+
+        async function executeTransitionToSong(targetSong, isForce = false, reason = 'auto', queueData = null) {
+
+
+            const yid = targetSong.youtube_id;
+            const isLocal = yid.startsWith('/static/') || yid.includes('.mp3') || yid.includes('.m4a') || yid.includes('.wav');
+
+            // === PHÁT QUA YOUTUBE IFRAME (CHO MỌI BÀI YOUTUBE TRÊN TABLET) ===
+            if (!isLocal) {
+                isCurrentTrackYouTube = true;
+                stopXProgress();
+                hardStopDeck(audioA);
+                hardStopDeck(audioB);
+
+                currentSong = targetSong;
+                updateNowPlayingUI(targetSong);
+                isOutroFading = false;
+                isAudioUnlocked = true;
+
+                const badge = document.getElementById('transitionBadge');
+                if (badge) badge.classList.add('hidden');
+
+                const playYt = () => {
+                    if (ytPlayer && isYtReady && typeof ytPlayer.loadVideoById === 'function') {
+                        try {
+                            ytPlayer.setVolume(baseVolume);
+                            ytPlayer.loadVideoById(yid);
+                            ytPlayer.playVideo();
+                            setPlaybackUIState(true);
+                            startXProgress();
+                        } catch(e) {
+                            console.warn('[YouTube Iframe] play error:', e);
+                        }
+                    } else {
+                        // Wait a bit if API is still loading
+                        setTimeout(playYt, 250);
+                    }
+                };
+
+                playYt();
+                isTransitioning = false;
+                transitioningSongId = null;
+                setSkipButtonDisabled(false);
+                return;
+            }
+
+            // === PHÁT QUA THẺ AUDIO CHO FILE MP3 NỘI BỘ QUÁN ===
+            isCurrentTrackYouTube = false;
+            stopXProgress();
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                try { ytPlayer.pauseVideo(); } catch(e) {}
+            }
+
+            const seq = ++transitionSeq;
+            isTransitioning = true;
+            transitioningSongId = targetSong ? targetSong.id : null;
+            setSkipButtonDisabled(true);
+            console.log(`[Transition #${seq}] Switching to: "${targetSong?.title}" (force=${isForce}, reason=${reason})`);
+
+            if (!targetSong) {
+                showIdle();
+                isTransitioning = false;
+                transitioningSongId = null;
+                setSkipButtonDisabled(false);
+                return;
+            }
+
+            const oldActive = getActiveAudio();
+
+            // If already playing this song on the active deck, just sync metadata and return
+            if (currentSong &&
+                currentSong.id === targetSong.id &&
+                oldActive.src &&
+                oldActive._loadedYid === targetSong.youtube_id &&
+                !oldActive.paused) {
+                currentSong = targetSong;
+                updateNowPlayingUI(targetSong);
+                isTransitioning = false;
+                transitioningSongId = null;
+                setSkipButtonDisabled(false);
+                return;
+            }
+
+            const badge = document.getElementById('transitionBadge');
+            const yid = targetSong.youtube_id;
+            const standby = getStandbyAudio();
+
+            // Cancel any in-flight background preload so it cannot overwrite standby during transition
+            preloadingYid = null;
+
+            // Check if standby deck already has target song's stream src assigned (and isn't currently fading out)
+            const hasPreloadedSrc = Boolean(
+                standby.src &&
+                standby._loadedYid === yid &&
+                !standby.error &&
+                !standby._isFadingOut
+            );
+
+            // MULTI-TASKING STREAM PREPARATION:
+            // 1) If standby deck does not have the target song's stream URL yet, fetch & assign it in background.
+            // 2) Even if standby already has the stream URL assigned from preload, ensure it has buffered enough
+            //    audio frames (readyState >= 2) BEFORE swapping decks.
+            // CRITICAL: oldActive KEEPS PLAYING at full volume undisturbed while standby prepares in background!
+            if (!hasPreloadedSrc) {
+                console.log(`[Transition #${seq}] Multitasking: Preparing "${targetSong.title}" in background on standby deck...`);
+                if (badge) {
+                    badge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 text-cyan-400 animate-spin"></i><span>Đang chuẩn bị: ${escapeHtml(targetSong.title.slice(0, 26))}...</span>`;
+                    badge.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+
+                let streamUrl = null;
+                const isLocal = yid.startsWith('/static/') || yid.includes('.mp3') || yid.includes('.m4a') || yid.includes('.wav');
+
+                try {
+                    if (isLocal) {
+                        streamUrl = yid;
+                    } else {
+                        const res = await fetch(`/api/audio_stream/${yid}`);
+                        const data = await res.json();
+                        if (data.success && data.audio && data.audio.url) {
+                            streamUrl = data.audio.url;
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`[Transition #${seq}] Stream fetch error:`, err);
+                }
+
+                if (seq !== transitionSeq) {
+                    console.log(`[Transition #${seq}] Discarded stale transition request`);
+                    return;
+                }
+
+                if (!streamUrl) {
+                    console.warn(`[Transition #${seq}] No stream obtained for:`, yid);
+                    if (badge) {
+                        badge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3 text-rose-400"></i><span>Lỗi tải nhạc, đang chuyển bài...</span>`;
+                        badge.classList.remove('hidden');
+                        lucide.createIcons();
+                    }
+                    isTransitioning = false;
+                    transitioningSongId = null;
+                    setSkipButtonDisabled(false);
+                    // Notice oldActive was NEVER stopped, so cafe music continues seamlessly!
+                    setTimeout(() => {
+                        if (seq === transitionSeq && !isTransitioning) {
+                            advanceToNextSong(true, 'stream_error');
+                        }
+                    }, 1500);
+                    return;
+                }
+
+                // Buffer audio chunks into standby deck
+                cancelFade(standby);
+                detachAllEvents(standby);
+                standby.pause();
+                standby.volume = 0;
+                standby.src = streamUrl;
+                standby._loadedYid = yid;
+                standby.preload = 'auto';
+                standby.load();
+            }
+
+            if (standby.readyState < 2) {
+                if (badge) {
+                    badge.innerHTML = `<i data-lucide="loader-2" class="w-3 h-3 text-cyan-400 animate-spin"></i><span>Đang chuẩn bị: ${escapeHtml(targetSong.title.slice(0, 26))}...</span>`;
+                    badge.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+                // Wait until standby deck has buffered enough data to play with zero stutter while oldActive keeps playing
+                await waitForAudioReady(standby, 4000);
+
+                if (seq !== transitionSeq) {
+                    console.log(`[Transition #${seq}] Discarded stale transition after buffer`);
+                    return;
+                }
+            } else {
+                console.log(`[Transition #${seq}] Standby deck was already preloaded & buffered with "${targetSong.title}"! Zero delay!`);
+            }
+
+            // Invalidate preloaded pointers as we are now activating standby
+            preloadedSong = null;
+            preloadedStreamUrl = null;
+
+            // Standby is now 100% buffered and ready.
+            // Swap decks: standby deck becomes newActive!
+            currentDeck = (currentDeck === 'A' ? 'B' : 'A');
+            const newActive = getActiveAudio(); // formerly standby
+            const previousActive = oldActive;
+
+            // Immediately and unconditionally stop & clear the old deck BEFORE the new track starts playing
+            // so the old song NEVER lingers or echoes in the background!
+            hardStopDeck(previousActive);
+            attachActiveAudioEvents(newActive);
+
+            currentSong = targetSong;
+            updateNowPlayingUI(targetSong);
+            isOutroFading = false;
+
+            // Start new active deck cleanly
+            cancelFade(newActive);
+            newActive.muted = false;
+            newActive.volume = Math.min(1, Math.max(0, baseVolume / 100));
+            if (newActive.currentTime > 0 && newActive.readyState >= 1) {
+                try { newActive.currentTime = 0; } catch (e) {}
+            }
+
+            const startNewTrack = () => {
+                if (seq !== transitionSeq) return;
+                isAudioUnlocked = true;
+                // Double guarantee that previousActive is 100% stopped
+                hardStopDeck(previousActive);
+                newActive.muted = false;
+                newActive.volume = Math.min(1, Math.max(0, baseVolume / 100));
+                setPlaybackUIState(true);
+
+                // Preload the next song into the now-freed standby deck
+                const nextToPrep = (queueData && queueData.next_up) || pendingPreloadSong || latestQueueData?.next_up || (waitingList.length > 0 ? waitingList[0] : null);
+                pendingPreloadSong = null;
+                if (nextToPrep) {
+                    setTimeout(() => {
+                        if (seq === transitionSeq && !isTransitioning) {
+                            prepareNextSong(nextToPrep);
+                        }
+                    }, 300);
+                } else {
+                    setTimeout(() => fetchQueue(), 1200);
+                }
+
+                if (seq === transitionSeq) {
+                    isTransitioning = false;
+                    transitioningSongId = null;
+                    setSkipButtonDisabled(false);
+                    document.getElementById('transitionBadge')?.classList.add('hidden');
+                }
+            };
+
+            const pp = newActive.play();
+            if (pp) {
+                pp.then(() => {
+                    if (seq !== transitionSeq) return;
+                    startNewTrack();
+                }).catch(err => {
+                    if (seq !== transitionSeq) return;
+                    console.warn('[Audio] Autoplay blocked, trying transparent unmuted trick:', err);
+                    newActive.muted = true;
+                    newActive.play().then(() => {
+                        setTimeout(() => {
+                            if (seq !== transitionSeq) return;
+                            newActive.muted = false;
+                            startNewTrack();
+                        }, 50);
+                    }).catch(e2 => {
+                        console.warn('[Audio] Fallback play failed:', e2);
+                        newActive.volume = baseVolume / 100;
+                        setPlaybackUIState(false);
+                        if (seq === transitionSeq) {
+                            isTransitioning = false;
+                            transitioningSongId = null;
+                            setSkipButtonDisabled(false);
+                        }
+                    });
+                });
+            } else {
+                startNewTrack();
+            }
+        }
+
+        function skipSong(isForce = true, e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (isTransitioning) {
+                console.log('[Skip] Transition already in progress, ignored.');
+                return;
+            }
+            isOutroFading = false;
+            advanceToNextSong(true, 'manual_skip');
+        }
+
+        // ============================================================
+        // UI HELPERS
+        // ============================================================
+
+        function updateNowPlayingUI(song) {
+            document.getElementById('idleOverlay').classList.add('hidden');
+            document.getElementById('transitionBadge')?.classList.add('hidden');
+
+            document.getElementById('nowPlayingTitle').textContent = song.title;
+            document.getElementById('nowPlayingTitle').title = song.title;
+            document.getElementById('nowPlayingThumb').src = song.thumbnail || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&h=500&fit=crop';
+            document.getElementById('nowPlayingChannel').innerHTML = `<i data-lucide="music-2" class="w-3.5 h-3.5 text-purple-400"></i> ${escapeHtml(song.channel || 'Audio')}`;
+            document.getElementById('durationDisplay').textContent = song.duration || '--:--';
+            document.getElementById('currentTimeDisplay').textContent = '00:00';
+            const pb = document.getElementById('songProgressBar');
+            if (pb) pb.style.width = '0%';
+
+            const isDefault = (song.user_id === 'SYSTEM_DEFAULT' || song.user_id === 'admin_play');
+            const isScheduled = (song.user_id === 'ADMIN_SCHEDULED');
+            const userLabel = document.getElementById('nowPlayingUserLabel');
+            const userName = document.getElementById('nowPlayingUser');
+            const sourceBadge = document.getElementById('nowPlayingSourceBadge');
+
+            if (isDefault) {
+                userLabel.textContent = "Nguồn phát:";
+                userName.textContent = song.user_name || "Nhạc nền quán";
+                if (sourceBadge) {
+                    sourceBadge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-purple-950/70 text-purple-300 border border-purple-800/60 truncate max-w-[240px]";
+                    sourceBadge.textContent = song.user_name || "Playlist Quán";
+                }
+            } else if (isScheduled) {
+                userLabel.textContent = "Hẹn giờ:";
+                userName.textContent = song.user_name || "Nhạc hẹn giờ ⏰";
+                if (sourceBadge) {
+                    sourceBadge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-amber-950/70 text-amber-300 border border-amber-800/60 truncate max-w-[240px]";
+                    sourceBadge.textContent = "Nhạc hẹn giờ ⏰";
+                }
+            } else {
+                userLabel.textContent = "Order bởi:";
+                userName.textContent = song.user_name || 'Khách';
+                if (sourceBadge) {
+                    sourceBadge.className = "text-[10px] font-bold px-2.5 py-1 rounded-lg bg-pink-950/70 text-pink-300 border border-pink-800/60 truncate max-w-[240px]";
+                    sourceBadge.textContent = "Khách yêu cầu 🎤";
+                }
+            }
+            updateSpeakerModeText();
+            lucide.createIcons();
+        }
+
+        // Global transparent auto-unlock on ANY user activity (click, touch, mouse move, key press)
+        const unlockEvents = ['pointerdown', 'mousedown', 'keydown', 'touchstart', 'focus', 'wheel', 'mousemove'];
+        function globalAutoUnlock() {
+            isAudioUnlocked = true;
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                try { ytPlayer.playVideo(); setPlaybackUIState(true); startXProgress(); } catch(e) {}
+            }
+            const active = getActiveAudio();
+            if (active) {
+                active.muted = false;
+                active.volume = Math.min(1, Math.max(0, baseVolume / 100));
+                if (active.paused && active.src) {
+                    active.play().then(() => setPlaybackUIState(true)).catch(() => {});
+                }
+            }
+            unlockEvents.forEach(ev => window.removeEventListener(ev, globalAutoUnlock, true));
+        }
+        unlockEvents.forEach(ev => window.addEventListener(ev, globalAutoUnlock, { capture: true, passive: true }));
+
+        function unlockAudioOnce(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            globalAutoUnlock();
+        }
+
+        function speakerTogglePlayPause(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const active = getActiveAudio();
+            if (active && active.src && !active.paused) {
+                speakerPause(e);
+            } else {
+                speakerPlay(e);
+            }
+        }
+
+        function speakerPlay(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            isAudioUnlocked = true;
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                try { ytPlayer.playVideo(); setPlaybackUIState(true); startXProgress(); } catch(e) {}
+                return;
+            }
+            const active = getActiveAudio();
+            if (active) {
+                active.muted = false;
+                active.volume = Math.min(1, Math.max(0, baseVolume / 100));
+                if (active.src && active.paused) {
+                    active.play().then(() => setPlaybackUIState(true)).catch(console.error);
+                } else if (!active.src) {
+                    advanceToNextSong(true, 'play_click');
+                }
+            }
+        }
+
+        function speakerPause(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                try { ytPlayer.pauseVideo(); setPlaybackUIState(false); stopXProgress(); } catch(e) {}
+                return;
+            }
+            const active = getActiveAudio();
+            if (active && active.src && !active.paused) {
+                active.pause();
+                setPlaybackUIState(false);
+            }
+        }
+
+        function setSpeakerVolume(val, emitSync = false) {
+            baseVolume = Math.max(0, Math.min(100, Number(val)));
+            const slider = document.getElementById('speakerVolumeSlider');
+            const percentEl = document.getElementById('speakerVolPercent');
+            if (slider) {
+                slider.value = baseVolume;
+                slider.style.background = `linear-gradient(to right, #f59e0b 0%, #f59e0b ${baseVolume}%, #27272a ${baseVolume}%, #27272a 100%)`;
+            }
+            if (percentEl) percentEl.textContent = `${baseVolume}%`;
+            const active = getActiveAudio();
+            if (active) {
+                if (active === audioA && fadeIntervalA) {
+                    clearInterval(fadeIntervalA);
+                    fadeIntervalA = null;
+                } else if (active === audioB && fadeIntervalB) {
+                    clearInterval(fadeIntervalB);
+                    fadeIntervalB = null;
+                }
+                active.volume = baseVolume / 100;
+            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+                try { ytPlayer.setVolume(baseVolume); } catch(e) {}
+            }
+            }
+            const volEl = document.getElementById('speakerVolText');
+            if (volEl) volEl.textContent = `Âm lượng: ${baseVolume}%`;
+            if (emitSync) {
+                speakerVolumeDragUntil = Date.now() + 450;
+                if (typeof socket !== 'undefined') {
+                    socket.emit('set_volume_realtime', { volume: baseVolume, source: 'speaker' });
+                }
+                if (!speakerVolPostTimer) {
+                    speakerVolPostTimer = setTimeout(() => {
+                        speakerVolPostTimer = null;
+                        fetch('/api/speaker/state', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ volume: baseVolume, source: 'speaker' })
+                        }).catch(() => {});
+                    }, 45);
+                }
+            }
+        }
+
+        function setPlaybackUIState(isPlaying) {
+            const eq = document.getElementById('equalizerContainer');
+            const badge = document.getElementById('nowPlayingBadge');
+            const vinyl = document.getElementById('vinylRecord');
+            const toggleBtn = document.getElementById('speakerPlayPauseBtn');
+            if (vinyl) {
+                if (isPlaying) vinyl.classList.remove('spin-vinyl-paused');
+                else vinyl.classList.add('spin-vinyl-paused');
+            }
+            if (eq) {
+                if (isPlaying) eq.classList.remove('eq-paused');
+                else eq.classList.add('eq-paused');
+            }
+            if (badge) {
+                if (isPlaying) {
+                    badge.className = "text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1.5";
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>Đang phát`;
+                } else {
+                    badge.className = "text-[10px] font-mono uppercase font-bold tracking-wider px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center gap-1.5";
+                    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Tạm dừng`;
+                }
+            }
+            if (toggleBtn) {
+                if (isPlaying) {
+                    toggleBtn.className = "bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-white/5 hover:border-amber-500/40 py-3 rounded-xl text-xs font-extrabold font-mono flex items-center justify-center gap-2 transition active:scale-95 shadow";
+                    toggleBtn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5"></i><span>TẠM DỪNG</span>`;
+                } else {
+                    toggleBtn.className = "bg-zinc-900 hover:bg-zinc-800 text-emerald-400 border border-white/5 hover:border-emerald-500/40 py-3 rounded-xl text-xs font-extrabold font-mono flex items-center justify-center gap-2 transition active:scale-95 shadow";
+                    toggleBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5 fill-current"></i><span>TIẾP TỤC</span>`;
+                }
+                lucide.createIcons({ root: toggleBtn });
+            }
+            if (typeof socket !== 'undefined') {
+                socket.emit('speaker_playback_state', { is_playing: Boolean(isPlaying), volume: baseVolume, source: 'speaker', password: getSpeakerPass() });
+            }
+            fetch('/api/speaker/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_playing: Boolean(isPlaying), volume: baseVolume, source: 'speaker', password: getSpeakerPass() })
+            }).catch(() => {});
+        }
+
+        function fadeVolume(el, startVol, endVol, durationMs, onComplete) {
+            if (!el) { if (onComplete) onComplete(); return; }
+            if (el === audioA && fadeIntervalA) clearInterval(fadeIntervalA);
+            if (el === audioB && fadeIntervalB) clearInterval(fadeIntervalB);
+
+            if (endVol > 0) el.muted = false;
+            try { el.volume = Math.min(1, Math.max(0, startVol / 100)); } catch(e) {}
+
+            if (durationMs <= 50) {
+                try { el.volume = Math.min(1, Math.max(0, endVol / 100)); } catch(e) {}
+                if (onComplete) onComplete();
+                return;
+            }
+
+            const intMs = 40;
+            const steps = Math.max(1, Math.round(durationMs / intMs));
+            const delta = (endVol - startVol) / steps;
+            let current = startVol;
+            let step = 0;
+
+            const id = setInterval(() => {
+                step++;
+                current += delta;
+                try { el.volume = Math.min(1, Math.max(0, current / 100)); } catch(e) {}
+                if (step >= steps) {
+                    clearInterval(id);
+                    if (el === audioA) fadeIntervalA = null;
+                    else fadeIntervalB = null;
+                    try { el.volume = Math.min(1, Math.max(0, endVol / 100)); } catch(e) {}
+                    if (onComplete) onComplete();
+                }
+            }, intMs);
+
+            if (el === audioA) fadeIntervalA = id;
+            else fadeIntervalB = id;
+        }
+
+        function handleSeek(e) {
+            if (e && e.stopPropagation) e.stopPropagation();
+            const track = document.getElementById('songProgressTrack');
+            if (!track) return;
+            const rect = track.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const pct = Math.max(0, Math.min(1, clickX / rect.width));
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.getDuration === 'function') {
+                try {
+                    const dur = ytPlayer.getDuration() || 0;
+                    ytPlayer.seekTo(pct * dur, true);
+                } catch(e) {}
+                return;
+            }
+            const active = getActiveAudio();
+            if (active && active.duration) {
+                active.currentTime = pct * active.duration;
+            }
+        }
+
+        function showIdle() {
+            currentSong = null;
+            preloadedSong = null;
+            preloadedStreamUrl = null;
+            isTransitioning = false;
+            isOutroFading = false;
+            document.getElementById('idleOverlay').classList.remove('hidden');
+            document.getElementById('transitionBadge')?.classList.add('hidden');
+            document.getElementById('nowPlayingTitle').textContent = "Chưa có bài hát";
+            document.getElementById('nowPlayingChannel').innerHTML = `<i data-lucide="music-2" class="w-3.5 h-3.5 text-slate-500"></i> Audio`;
+            document.getElementById('nowPlayingUser').textContent = "--";
+            document.getElementById('nowPlayingThumb').src = "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500&h=500&fit=crop";
+            document.getElementById('currentTimeDisplay').textContent = '00:00';
+            document.getElementById('durationDisplay').textContent = '--:--';
+            const pb = document.getElementById('songProgressBar');
+            if (pb) pb.style.width = '0%';
+            setPlaybackUIState(false);
+            detachAllEvents(audioA);
+            detachAllEvents(audioB);
+            [audioA, audioB].forEach(a => {
+                a.pause();
+                a.removeAttribute('src');
+                a._loadedYid = null;
+            });
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        // QUEUE UPDATE HANDLER — SINGLE ENTRY POINT FOR ALL QUEUE LOGIC
+        // ============================================================
+
+        function handleQueueUpdate(data) {
+            latestQueueData = data;
+            waitingList = data.waiting || [];
+            if (data.playback_mode) currentPlaybackMode = data.playback_mode;
+            if (data.active_playlist) activePlaylistInfo = data.active_playlist;
+            updateSpeakerModeText();
+
+            document.getElementById('waitingCountBadge').textContent = waitingList.length;
+
+            const listContainer = document.getElementById('speakerWaitingList');
+            if (waitingList.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-6 text-xs text-zinc-500 font-mono">
+                        Chưa có bài nào của khách chờ.<br>
+                        <span class="text-amber-400 font-medium">Hệ thống đang phát Playlist Quán</span>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = waitingList.map((s, idx) => {
+                    const idxStr = String(idx + 1).padStart(2, '0');
+                    return `
+                    <div class="glass-panel rounded-xl p-2.5 flex items-center gap-3 border border-white/5 hover:border-zinc-700 transition">
+                        <span class="w-6 text-center text-xs font-mono font-bold ${idx === 0 ? 'text-amber-400' : 'text-zinc-500'}">#${idxStr}</span>
+                        <div class="relative flex-shrink-0">
+                            <img src="${s.thumbnail || 'https://i.ytimg.com/vi/' + s.youtube_id + '/hqdefault.jpg'}" onerror="this.onerror=null;this.src='https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200&h=200&fit=crop';" class="w-12 h-9 object-cover rounded-lg border border-white/10" />
+                            <span class="absolute bottom-0.5 right-0.5 bg-black/80 font-mono text-[8px] text-zinc-300 px-1 rounded">${s.duration || '--:--'}</span>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-bold text-white truncate tracking-tight">${escapeHtml(s.title)}</p>
+                            <p class="text-[11px] text-zinc-400 mt-0.5 truncate flex items-center gap-1.5 font-mono">
+                                <span class="text-amber-300 font-semibold">${escapeHtml(s.user_name)}</span>
+                            </p>
+                        </div>
+                    </div>
+                `;}).join('');
+            }
+
+            // If speaker is currently idle (no song playing), start playing automatically
+            if (!currentSong && !isTransitioning) {
+                if (data.current) {
+                    executeTransitionToSong(data.current, false, 'queue_sync_start', data);
+                    return;
+                } else if (waitingList.length > 0) {
+                    advanceToNextSong(true, 'idle_start');
+                    return;
+                } else {
+                    // Auto-start cafe background playlist on initial open so it plays instantly
+                    advanceToNextSong(true, 'auto_start_playlist');
+                    return;
+                }
+            } else if (currentSong && data.current) {
+                if (currentSong.id === data.current.id || currentSong.youtube_id === data.current.youtube_id) {
+                    currentSong = data.current; // sync DB id
+                } else if (!isTransitioning) {
+                    console.log('[Speaker Sync] Server switched active song:', data.current.title);
+                    executeTransitionToSong(data.current, true, 'sync_priority_promotion', data);
+                    return;
+                }
+            }
+
+            // === Preload next song in standby deck so it's 100% ready for the 5s crossfade ===
+            if (!isTransitioning) {
+                const nextToPreload = data.next_up || (waitingList.length > 0 ? waitingList[0] : null);
+                if (nextToPreload) {
+                    prepareNextSong(nextToPreload);
+                }
+            }
+
+            lucide.createIcons();
+        }
+
+        let lastQueueFetch = 0;
+        async function fetchQueue() {
+            const now = Date.now();
+            if (now - lastQueueFetch < 1500) return;
+            lastQueueFetch = now;
+            try {
+                const res = await fetch('/api/queue');
+                const data = await res.json();
+                if (data.success && data.queue) {
+                    if (data.speaker_state && data.speaker_state.volume !== undefined && Date.now() > speakerVolumeDragUntil) {
+                        setSpeakerVolume(data.speaker_state.volume, false);
+                    }
+                    if (data.playback_mode) data.queue.playback_mode = data.playback_mode;
+                    if (data.active_playlist) data.queue.active_playlist = data.active_playlist;
+                    handleQueueUpdate(data.queue);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function updateSpeakerModeText() {
+            const modeEl = document.getElementById('speakerModeText');
+            if (!modeEl) return;
+            if (currentPlaybackMode === 'playlist_only') {
+                const plName = activePlaylistInfo ? activePlaylistInfo.name : 'Quán';
+                modeEl.textContent = `Cố định: Playlist ${plName}`;
+            } else {
+                if (currentSong && currentSong.user_id !== 'SYSTEM_DEFAULT' && currentSong.user_id !== 'admin_play') {
+                    modeEl.textContent = `Khách yêu cầu (${currentSong.user_name || 'Khách'})`;
+                } else {
+                    const plName = activePlaylistInfo ? activePlaylistInfo.name : 'Quán';
+                    modeEl.textContent = `Ưu tiên khách (Đang phát nền: ${plName})`;
+                }
+            }
+        }
+
+        function handleRemoteCommand(cmd) {
+            if (cmd.action === 'pause') speakerPause();
+            else if (cmd.action === 'play') speakerPlay();
+            else if (cmd.action === 'next') skipSong(true);
+            else if (cmd.action === 'volume' && cmd.value !== undefined) {
+                if (cmd.source === 'speaker' && Date.now() <= speakerVolumeDragUntil) return;
+                setSpeakerVolume(cmd.value, false);
+            }
+            else if (cmd.action === 'reload') window.location.reload();
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds < 0) return '00:00';
+            const total = Math.floor(seconds);
+            const h = Math.floor(total / 3600);
+            const m = Math.floor((total % 3600) / 60);
+            const s = total % 60;
+            if (h > 0) {
+                return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+            }
+            return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        async function verifySpeakerPass(e) {
+            if (e) e.preventDefault();
+            const val = document.getElementById('speakerPassInput').value.trim();
+            const errEl = document.getElementById('speakerAuthError');
+            if (errEl) errEl.classList.add('hidden');
+            if (!val) return;
+            try {
+                const res = await fetch('/api/speaker/verify_pass', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: val })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    isSpeakerAuthed = true;
+                    localStorage.setItem('xuancf_speaker_authed', 'true');
+                    localStorage.setItem('xuancf_speaker_pass', val);
+                    sessionStorage.setItem('xuancf_speaker_authed', 'true');
+                    sessionStorage.setItem('xuancf_speaker_pass', val);
+                    const modal = document.getElementById('speakerPassModal');
+                    if (modal) modal.classList.add('hidden');
+                    unlockAudioOnce();
+                    setSpeakerVolume(100);
+                    fetchQueue();
+                    socket.emit('request_queue');
+                } else {
+                    if (errEl) {
+                        errEl.textContent = data.message || 'Mật khẩu Loa không chính xác! Vui lòng thử lại.';
+                        errEl.classList.remove('hidden');
+                    } else {
+                        alert(data.message || 'Mật khẩu Loa không chính xác!');
+                    }
+                }
+            } catch (err) {
+                if (errEl) {
+                    errEl.textContent = 'Lỗi kết nối máy chủ!';
+                    errEl.classList.remove('hidden');
+                } else {
+                    alert('Lỗi kết nối máy chủ!');
+                }
+            }
+        }
+
+        async function lockSpeaker() {
+            if (!confirm('Bạn có chắc muốn khóa màn hình Loa?')) return;
+            try {
+                await fetch('/api/speaker/logout', { method: 'POST' });
+            } catch (e) {}
+            localStorage.removeItem('xuancf_speaker_authed');
+            localStorage.removeItem('xuancf_speaker_pass');
+            sessionStorage.removeItem('xuancf_speaker_authed');
+            sessionStorage.removeItem('xuancf_speaker_pass');
+            isSpeakerAuthed = false;
+            hardStopDeck(audioA);
+            hardStopDeck(audioB);
+            showIdle();
+            const modal = document.getElementById('speakerPassModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                const inp = document.getElementById('speakerPassInput');
+                if (inp) { inp.value = ''; inp.focus(); }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            const modal = document.getElementById('speakerPassModal');
+            if (!isSpeakerAuthed) {
+                if (modal) modal.classList.remove('hidden');
+                document.getElementById('speakerPassInput')?.focus();
+            } else {
+                if (modal) modal.classList.add('hidden');
+                setSpeakerVolume(100);
+                fetchQueue();
+            }
+        });
+    </script>
+
+    <!-- Modal: Speaker Authentication -->
+    <div id="speakerPassModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/95 backdrop-blur-xl">
+        <div class="glass-panel bg-zinc-950/90 border border-zinc-800/80 rounded-3xl max-w-sm w-full p-6 sm:p-7 shadow-2xl text-center relative overflow-hidden">
+            <div class="w-14 h-14 rounded-2xl bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center justify-center mb-4 mx-auto shadow-inner">
+                <i data-lucide="shield-check" class="w-7 h-7"></i>
+            </div>
+            <h3 class="text-lg sm:text-xl font-bold text-white mb-1.5">Xác thực Màn hình Loa</h3>
+            <p class="text-xs text-zinc-400 mb-5 leading-relaxed">Nhập mật khẩu để mở khóa và phát âm thanh trên Loa quán</p>
+
+            <form onsubmit="verifySpeakerPass(event)" class="space-y-4">
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="speakerPassInput" 
+                        placeholder="Nhập mật khẩu Loa..." 
+                        autocomplete="current-password"
+                        class="w-full bg-zinc-900/90 border border-zinc-700/80 focus:border-amber-500 rounded-xl px-4 py-3 pr-11 text-center text-lg tracking-widest text-white focus:outline-none transition shadow-inner placeholder:text-zinc-600"
+                        required
+                    />
+                    <button type="button" onclick="toggleSpeakerPasswordVisibility()" class="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white transition p-1" title="Hiện/ẩn mật khẩu">
+                        <i id="eyeIconSpeaker" data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="speakerAuthError" class="hidden text-xs text-rose-400 font-medium"></div>
+                <button type="submit" id="btnUnlockSpeaker" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-95 text-zinc-950 font-bold py-3.5 rounded-xl text-sm transition shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2">
+                    <i data-lucide="lock-open" class="w-4 h-4"></i>
+                    <span>Mở khóa & Bật Loa</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
