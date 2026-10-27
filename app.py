@@ -1393,6 +1393,43 @@ def api_admin_delete_hot_item():
     return jsonify({'success': False, 'message': message}), 400
 
 
+@app.route('/api/keu-nuoc/bank-info', methods=['GET'])
+def api_keu_nuoc_bank_info():
+    """Lay thong tin tai khoan ngan hang tu may chu Bep (cong 1234) de doc bank va tao VietQR"""
+    kitchen_ip = os.environ.get("KITCHEN_API_HOST")
+    if not kitchen_ip:
+        host_header = (request.host or '').split(':')[0]
+        kitchen_ip = host_header if host_header and host_header not in ('0.0.0.0', 'localhost') else '127.0.0.1'
+
+    kitchen_port = int(os.environ.get("KITCHEN_API_PORT", 1234))
+    urls_to_try = [
+        f"http://{kitchen_ip}:{kitchen_port}/api/store-settings",
+        f"http://127.0.0.1:{kitchen_port}/api/store-settings"
+    ]
+    for target_url in urls_to_try:
+        try:
+            resp = requests.get(target_url, timeout=3)
+            if resp.status_code == 200:
+                data = resp.json() or {}
+                return jsonify({
+                    "success": True,
+                    "bank_name": data.get("bank_name") or "MB",
+                    "bank_account": data.get("bank_account") or "0939194508",
+                    "bank_owner": data.get("bank_owner") or "TIEM CA PHE XUAN",
+                    "store_name": data.get("store_name") or "TIỆM CÀ PHÊ XUÂN"
+                })
+        except Exception:
+            pass
+
+    return jsonify({
+        "success": True,
+        "bank_name": "MB",
+        "bank_account": "0939194508",
+        "bank_owner": "TIEM CA PHE XUAN",
+        "store_name": "TIỆM CÀ PHÊ XUÂN"
+    })
+
+
 @app.route('/api/keu-nuoc', methods=['POST'])
 def api_keu_nuoc():
     """API nhan don keu nuoc tu khach va chuyen tiep toi may chu Bep (cong 1234)"""

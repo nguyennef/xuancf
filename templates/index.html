@@ -707,6 +707,86 @@
         </div>
     </div>
 
+    
+    <!-- DRINK PAYMENT MODAL (QUÉT MÃ VIETQR TÍNH TIỀN) -->
+    <div id="drinkPaymentModal" onclick="if(event.target===this) closeDrinkPaymentModal()" class="fixed inset-0 z-[80] flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md popup-backdrop hidden">
+        <div class="popup-panel app-card rounded-3xl max-w-sm w-full max-h-[92vh] overflow-y-auto border border-amber-500/40 shadow-2xl relative custom-scroll">
+            <!-- Header -->
+            <div class="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-950/80 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="qr-code" class="w-4 h-4 text-amber-400"></i>
+                    <h3 class="text-sm font-extrabold text-white">Thanh toán kêu nước</h3>
+                </div>
+                <button type="button" onclick="closeDrinkPaymentModal()" class="w-7 h-7 rounded-full bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-4 space-y-3.5">
+                <!-- Total Amount Banner -->
+                <div class="bg-gradient-to-r from-amber-500/20 via-yellow-500/15 to-transparent border border-amber-500/40 rounded-2xl p-3 text-center">
+                    <span class="text-[11px] font-semibold text-zinc-400 block mb-0.5 uppercase tracking-wider">Tổng thanh toán</span>
+                    <span id="payTotalAmount" class="font-mono font-black text-2xl text-amber-300">0 đ</span>
+                    <p id="payItemsSummary" class="text-[11px] text-zinc-400 truncate mt-1"></p>
+                </div>
+
+                <!-- VietQR Image -->
+                <div class="bg-white rounded-2xl p-3 shadow-inner flex flex-col items-center justify-center border border-white/20">
+                    <img id="payQrImg" src="" alt="Mã VietQR" class="w-52 h-52 object-contain" />
+                    <span class="text-[10px] text-zinc-600 font-semibold mt-1">Quét bằng bất kỳ app ngân hàng hoặc MoMo</span>
+                </div>
+
+                <!-- Bank Info Details -->
+                <div class="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 space-y-2 text-xs">
+                    <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                        <span class="text-zinc-400">Ngân hàng:</span>
+                        <span id="payBankName" class="font-bold text-white uppercase">MB</span>
+                    </div>
+
+                    <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                        <span class="text-zinc-400">Số tài khoản:</span>
+                        <div class="flex items-center gap-1.5">
+                            <span id="payAccountNo" class="font-mono font-bold text-amber-300">0939194508</span>
+                            <button type="button" onclick="copyPaymentText('account')" class="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-amber-300 rounded transition" title="Sao chép">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                        <span class="text-zinc-400">Tên người nhận:</span>
+                        <span id="payAccountOwner" class="font-bold text-white truncate max-w-[170px]">TIEM CA PHE XUAN</span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-zinc-400">Nội dung CK:</span>
+                        <div class="flex items-center gap-1.5">
+                            <span id="payTransferMemo" class="font-mono font-black text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 rounded-lg text-xs">XUAN0000</span>
+                            <button type="button" onclick="copyPaymentText('memo')" class="p-1 hover:bg-zinc-800 text-zinc-400 hover:text-amber-300 rounded transition" title="Sao chép">
+                                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="text-[10px] text-zinc-400 text-center leading-relaxed">
+                    ⚡ Vui lòng chuyển đúng số tiền & nội dung CK để bếp nhận diện và pha chế ngay.
+                </p>
+
+                <!-- Actions -->
+                <div class="space-y-2 pt-1">
+                    <button type="button" id="btnConfirmPayment" onclick="confirmDrinkPaymentAndSend()" class="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/30 transition">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        <span>TÔI ĐÃ CHUYỂN KHOẢN • GỬI BẾP</span>
+                    </button>
+                    <button type="button" onclick="closeDrinkPaymentModal()" class="w-full py-2 text-xs font-semibold text-zinc-400 hover:text-white transition">
+                        Quay lại chọn món
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CAFE MENU MODAL: Centered Fixed-Size Popup with Zoom Animation -->
     <div id="cafeMenuModal" onclick="if(event.target===this) closeCafeMenuModal()" class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/85 backdrop-blur-md popup-backdrop hidden">
         <div class="popup-panel w-full max-w-md h-[76vh] min-h-[460px] max-h-[620px] bg-[#0c0e16] border border-amber-500/30 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
@@ -1124,143 +1204,120 @@
             if (phoneInput && !phoneInput.value) phoneInput.value = savedPhone;
         }
 
-        function addToOrderCart() {
-            if (!currentDetailItem) return;
-            const itemNote = (document.getElementById('orderItemNote')?.value || '').trim();
-            const qty = orderDrinkQty || 1;
+        
+        // ============================================================
+        // VIETQR PAYMENT & RANDOM MEMO CODE LOGIC
+        // ============================================================
+        let cachedBankInfo = null;
+        let currentPendingPayment = null;
 
-            const existing = drinkCart.find(x => x.name === currentDetailItem.name && x.note === itemNote);
-            if (existing) {
-                existing.quantity += qty;
-            } else {
-                const itemObj = {
-                    name: currentDetailItem.name,
-                    quantity: qty,
-                    note: itemNote
-                };
-                if (currentDetailItem.id) {
-                    itemObj.product_id = Number(currentDetailItem.id);
-                }
-                drinkCart.push(itemObj);
+        function parsePrice(raw) {
+            if (typeof raw === 'number') return raw;
+            if (!raw) return 0;
+            const str = String(raw).trim();
+            const digits = str.replace(/[^0-9]/g, '');
+            let num = parseInt(digits, 10) || 0;
+            if (num < 1000 && str.toLowerCase().includes('k')) {
+                num = num * 1000;
             }
-
-            const tableVal = (document.getElementById('orderTableInput')?.value || '').trim();
-            if (tableVal) localStorage.setItem('xuancf_table', tableVal);
-            const phoneVal = (document.getElementById('orderCustomerPhone')?.value || '').trim();
-            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
-            const nameVal = (document.getElementById('orderCustomerName')?.value || '').trim();
-            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
-
-            showToast(`Đã thêm ${qty}x ${currentDetailItem.name} vào đơn!`);
-            updateDrinkCartUI();
-            closeHotItemModal();
+            return num;
         }
 
-        function updateDrinkCartUI() {
-            const bar = document.getElementById('drinkCartBar');
-            const countEl = document.getElementById('drinkCartCount');
-            const totalItems = drinkCart.reduce((sum, it) => sum + (it.quantity || 1), 0);
-
-            if (countEl) countEl.textContent = totalItems;
-
-            if (totalItems > 0) {
-                if (bar) {
-                    bar.classList.remove('opacity-0', 'translate-y-6', 'pointer-events-none');
-                    bar.classList.add('opacity-100', 'translate-y-0');
+        async function getStoreBankInfo() {
+            if (cachedBankInfo) return cachedBankInfo;
+            try {
+                const res = await fetch('/api/keu-nuoc/bank-info');
+                const data = await res.json();
+                if (data && data.success) {
+                    cachedBankInfo = data;
+                    return data;
                 }
-            } else {
-                if (bar) {
-                    bar.classList.add('opacity-0', 'translate-y-6', 'pointer-events-none');
-                    bar.classList.remove('opacity-100', 'translate-y-0');
-                }
+            } catch (e) {
+                console.error('Lỗi lấy bank info:', e);
             }
+            return {
+                bank_name: 'MB',
+                bank_account: '0939194508',
+                bank_owner: 'TIEM CA PHE XUAN',
+                store_name: 'TIỆM CÀ PHÊ XUÂN'
+            };
         }
 
-        function openDrinkCartModal() {
-            if (drinkCart.length === 0) {
-                showToast('Chưa có món nào trong đơn gọi nước!');
+        async function openDrinkPaymentModal(itemsList, isSingleOrder = false) {
+            if (!itemsList || itemsList.length === 0) {
+                showToast('Chưa có món nào để thanh toán!');
                 return;
             }
-            const modal = document.getElementById('drinkCartModal');
-            const listEl = document.getElementById('drinkCartItemsList');
-            if (!modal || !listEl) return;
 
-            listEl.innerHTML = drinkCart.map((it, idx) => `
-                <div class="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3">
-                    <div class="min-w-0 flex-1">
-                        <p class="text-xs font-bold text-white truncate">${escapeHtml(it.name)}</p>
-                        ${it.note ? `<p class="text-[11px] text-amber-300 truncate mt-0.5">"${escapeHtml(it.note)}"</p>` : ''}
-                    </div>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <button type="button" onclick="modifyCartItemQty(${idx}, -1)" class="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center font-bold text-xs">-</button>
-                        <span class="font-mono font-bold text-amber-300 text-xs min-w-[18px] text-center">${it.quantity}</span>
-                        <button type="button" onclick="modifyCartItemQty(${idx}, 1)" class="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-xs">+</button>
-                        <button type="button" onclick="removeCartItem(${idx})" class="w-6 h-6 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 ml-1 flex items-center justify-center text-xs">
-                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                        </button>
-                    </div>
-                </div>
-            `).join('');
+            const bankInfo = await getStoreBankInfo();
+            const totalAmount = itemsList.reduce((sum, it) => sum + (it.quantity || 1) * parsePrice(it.price || 0), 0);
+            
+            // Random mã thanh toán: XUAN + 4 số ngẫu nhiên
+            const randomCode = 'XUAN' + Math.floor(1000 + Math.random() * 9000);
 
-            const savedTable = localStorage.getItem('xuancf_table') || '';
-            const savedPhone = localStorage.getItem('xuancf_customer_phone') || '';
-            const savedName = localStorage.getItem('xuancf_user_name') || userName || '';
+            currentPendingPayment = {
+                items: itemsList,
+                totalAmount: totalAmount,
+                memo: randomCode,
+                bankInfo: bankInfo,
+                isSingleOrder: isSingleOrder
+            };
 
-            const tableInput = document.getElementById('cartTableInput');
-            if (tableInput && !tableInput.value) tableInput.value = savedTable;
-            const nameInput = document.getElementById('cartCustomerName');
-            if (nameInput && !nameInput.value) nameInput.value = savedName;
-            const phoneInput = document.getElementById('cartCustomerPhone');
-            if (phoneInput && !phoneInput.value) phoneInput.value = savedPhone;
+            const modal = document.getElementById('drinkPaymentModal');
+            if (!modal) return;
+
+            document.getElementById('payTotalAmount').textContent = totalAmount.toLocaleString('vi-VN') + ' đ';
+            document.getElementById('payBankName').textContent = bankInfo.bank_name || 'MB';
+            document.getElementById('payAccountNo').textContent = bankInfo.bank_account || '0939194508';
+            document.getElementById('payAccountOwner').textContent = bankInfo.bank_owner || 'TIEM CA PHE XUAN';
+            document.getElementById('payTransferMemo').textContent = randomCode;
+
+            // VietQR public URL
+            const qrUrl = `https://img.vietqr.io/image/${bankInfo.bank_name}-${bankInfo.bank_account}-compact2.png?amount=${totalAmount}&addInfo=${randomCode}&accountName=${encodeURIComponent(bankInfo.bank_owner)}`;
+            document.getElementById('payQrImg').src = qrUrl;
+
+            const summaryText = itemsList.map(it => `${it.quantity}x ${it.name}`).join(' • ');
+            document.getElementById('payItemsSummary').textContent = summaryText;
 
             modal.classList.remove('hidden');
             requestAnimationFrame(() => modal.classList.add('popup-open'));
             lucide.createIcons();
         }
 
-        function closeDrinkCartModal() {
-            const modal = document.getElementById('drinkCartModal');
+        function closeDrinkPaymentModal() {
+            const modal = document.getElementById('drinkPaymentModal');
             if (!modal) return;
             modal.classList.remove('popup-open');
             setTimeout(() => modal.classList.add('hidden'), 230);
         }
 
-        function modifyCartItemQty(idx, delta) {
-            if (!drinkCart[idx]) return;
-            drinkCart[idx].quantity += delta;
-            if (drinkCart[idx].quantity <= 0) {
-                drinkCart.splice(idx, 1);
+        function copyPaymentText(field) {
+            if (!currentPendingPayment) return;
+            let val = '';
+            let label = '';
+            if (field === 'account') {
+                val = currentPendingPayment.bankInfo.bank_account;
+                label = 'Số tài khoản';
+            } else if (field === 'memo') {
+                val = currentPendingPayment.memo;
+                label = 'Nội dung chuyển khoản';
             }
-            updateDrinkCartUI();
-            if (drinkCart.length === 0) {
-                closeDrinkCartModal();
+            if (val && navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(String(val)).then(() => {
+                    showToast(`Đã sao chép ${label}: ${val}`);
+                }).catch(() => {
+                    prompt(`Sao chép ${label}:`, val);
+                });
             } else {
-                openDrinkCartModal();
+                prompt(`Sao chép ${label}:`, val);
             }
         }
 
-        function removeCartItem(idx) {
-            drinkCart.splice(idx, 1);
-            updateDrinkCartUI();
-            if (drinkCart.length === 0) {
-                closeDrinkCartModal();
-            } else {
-                openDrinkCartModal();
-            }
-        }
-
-        function clearDrinkCart() {
-            drinkCart = [];
-            updateDrinkCartUI();
-            closeDrinkCartModal();
-            showToast('Đã xóa danh sách món!');
-        }
-
-        async function sendOrderApi(payload, submitBtn) {
+                async function sendOrderApi(payload, submitBtn) {
             const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin inline-block"></i> <span>Đang gửi...</span>`;
+                submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin inline-block"></i> <span>Đang gửi đến bếp...</span>`;
                 lucide.createIcons();
             }
 
@@ -1273,7 +1330,6 @@
                 const resData = await res.json();
 
                 if (res.ok && resData.success) {
-                    showToast('✅ Đã gửi yêu cầu kêu nước đến bếp thành công!');
                     return true;
                 } else {
                     const err = resData.error || resData.message || 'Lỗi khi gửi yêu cầu gọi nước!';
@@ -1293,62 +1349,94 @@
             }
         }
 
-        async function submitSingleOrder() {
-            if (!currentDetailItem) return;
+        async function confirmDrinkPaymentAndSend() {
+            if (!currentPendingPayment) return;
 
             const savedTable = localStorage.getItem('xuancf_table') || 'Tại bàn';
             const nameVal = localStorage.getItem('xuancf_user_name') || userName || 'Khách tại quán';
+            const memo = currentPendingPayment.memo;
+
+            const payload = {
+                table: savedTable,
+                customer_name: nameVal,
+                customer_phone: '',
+                note: `[Đã CK: ${memo}]`,
+                items: currentPendingPayment.items.map(it => ({
+                    name: it.name,
+                    quantity: it.quantity,
+                    note: it.note ? `${it.note} (CK: ${memo})` : `(CK: ${memo})`,
+                    ...(it.product_id ? { product_id: it.product_id } : {})
+                }))
+            };
+
+            const submitBtn = document.getElementById('btnConfirmPayment');
+            const success = await sendOrderApi(payload, submitBtn);
+            if (success) {
+                closeDrinkPaymentModal();
+                if (currentPendingPayment.isSingleOrder) {
+                    closeHotItemModal();
+                } else {
+                    drinkCart = [];
+                    updateDrinkCartUI();
+                    closeDrinkCartModal();
+                }
+                currentPendingPayment = null;
+                showToast('🎉 Bếp đã tiếp nhận đơn của bạn!');
+            }
+        }
+
+        function addToOrderCart() {
+            if (!currentDetailItem) return;
+            const itemNote = (document.getElementById('orderItemNote')?.value || '').trim();
+            const qty = orderDrinkQty || 1;
+            const unitPrice = parsePrice(currentDetailItem.price);
+
+            const existing = drinkCart.find(x => x.name === currentDetailItem.name && x.note === itemNote);
+            if (existing) {
+                existing.quantity += qty;
+            } else {
+                const itemObj = {
+                    name: currentDetailItem.name,
+                    quantity: qty,
+                    note: itemNote,
+                    price: unitPrice
+                };
+                if (currentDetailItem.id) {
+                    itemObj.product_id = Number(currentDetailItem.id);
+                }
+                drinkCart.push(itemObj);
+            }
+
+            showToast(`Đã thêm ${qty}x ${currentDetailItem.name} vào danh sách!`);
+            updateDrinkCartUI();
+            closeHotItemModal();
+        }
+
+        function submitSingleOrder() {
+            if (!currentDetailItem) return;
             const itemNoteVal = (document.getElementById('orderItemNote')?.value || '').trim();
             const qty = orderDrinkQty || 1;
+            const unitPrice = parsePrice(currentDetailItem.price);
 
             const itemObj = {
                 name: currentDetailItem.name,
                 quantity: qty,
-                note: itemNoteVal
+                note: itemNoteVal,
+                price: unitPrice
             };
             if (currentDetailItem.id) {
                 itemObj.product_id = Number(currentDetailItem.id);
             }
 
-            const payload = {
-                table: savedTable,
-                customer_name: nameVal,
-                customer_phone: '',
-                note: itemNoteVal,
-                items: [itemObj]
-            };
-
-            const btn = document.getElementById('btnSingleOrderSubmit');
-            const success = await sendOrderApi(payload, btn);
-            if (success) {
-                closeHotItemModal();
-            }
+            openDrinkPaymentModal([itemObj], true);
         }
 
-        async function submitCartOrder() {
+        function submitCartOrder() {
             if (drinkCart.length === 0) {
                 showToast('Danh sách món đang trống!');
                 return;
             }
-
-            const savedTable = localStorage.getItem('xuancf_table') || 'Tại bàn';
-            const nameVal = localStorage.getItem('xuancf_user_name') || userName || 'Khách tại quán';
-
-            const payload = {
-                table: savedTable,
-                customer_name: nameVal,
-                customer_phone: '',
-                note: '',
-                items: drinkCart
-            };
-
-            const btn = document.getElementById('btnSubmitCartOrder');
-            const success = await sendOrderApi(payload, btn);
-            if (success) {
-                drinkCart = [];
-                updateDrinkCartUI();
-                closeDrinkCartModal();
-            }
+            openDrinkPaymentModal(drinkCart, false);
         }
 
         function renderHotModalContent(item, isGachaPick = false) {
