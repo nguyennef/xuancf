@@ -591,16 +591,16 @@
         </div>
     </div>
 
-    <!-- HOT Item Detail Popup Modal (Bảng giá, Tên món & Mô tả) -->
-    <div id="hotItemModal" onclick="if(event.target===this) closeHotItemModal()" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md popup-backdrop hidden">
-        <div class="popup-panel app-card rounded-3xl max-w-sm w-full overflow-hidden border border-amber-500/30 shadow-2xl relative">
+    <!-- HOT Item Detail Popup Modal (Bảng giá, Tên món, Mô tả & Kêu nước tại bàn) -->
+    <div id="hotItemModal" onclick="if(event.target===this) closeHotItemModal()" class="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md popup-backdrop hidden">
+        <div class="popup-panel app-card rounded-3xl max-w-sm w-full max-h-[92vh] overflow-y-auto border border-amber-500/30 shadow-2xl relative custom-scroll">
             <!-- Close Button -->
-            <button type="button" onclick="closeHotItemModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center backdrop-blur-md transition">
+            <button type="button" onclick="closeHotItemModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center backdrop-blur-md transition active:scale-90">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
 
             <!-- Item Photo -->
-            <div id="hotModalPhotoWrap" class="relative w-full h-64 bg-zinc-900 rounded-t-3xl overflow-hidden">
+            <div id="hotModalPhotoWrap" class="relative w-full h-48 sm:h-52 bg-zinc-900 rounded-t-3xl overflow-hidden flex-shrink-0">
                 <img id="hotModalImg" src="" alt="Món HOT" class="w-full h-full object-cover rounded-t-3xl" />
                 <div id="hotModalSsjOverlay"></div>
                 <div class="absolute inset-0 bg-gradient-to-t from-[#10121a] via-transparent to-transparent pointer-events-none"></div>
@@ -610,30 +610,151 @@
             </div>
 
             <!-- Item Info: Tên món, Giá & Mô tả -->
-            <div class="p-5 pt-2 space-y-3">
+            <div class="p-4 sm:p-5 pt-2 space-y-3">
                 <div id="hotModalGachaBanner" class="hidden bg-amber-500/15 border border-amber-400/40 rounded-xl px-3 py-1.5 text-[11px] text-amber-300 font-bold">
                     <span>Gợi ý món hôm nay cho bạn</span>
                 </div>
 
                 <div class="flex items-start justify-between gap-3">
-                    <h3 id="hotModalTitle" class="text-lg font-extrabold text-white leading-snug"></h3>
+                    <h3 id="hotModalTitle" class="text-base sm:text-lg font-extrabold text-white leading-snug"></h3>
                     <div id="hotModalPrice" class="bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono font-extrabold text-sm px-3 py-1 rounded-xl flex-shrink-0 shadow-inner"></div>
                 </div>
 
-                <div class="bg-zinc-900/70 border border-white/5 rounded-2xl p-3.5">
+                <div class="bg-zinc-900/70 border border-white/5 rounded-2xl p-3">
                     <div class="text-[10px] font-mono uppercase tracking-wider text-zinc-400 mb-1 font-semibold">Mô tả</div>
                     <p id="hotModalDesc" class="text-xs text-zinc-200 leading-relaxed whitespace-pre-line"></p>
                 </div>
 
-                <div class="flex items-center justify-between gap-2 pt-1">
-                    <button type="button" onclick="stepHotModal(-1)" class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-300 border border-white/10 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition">
-                        <span>Món trước</span>
-                    </button>
-                    <button type="button" onclick="closeHotItemModal()" class="flex-1 bg-amber-500 hover:bg-amber-400 active:scale-95 text-zinc-950 font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-wider shadow transition">
+                <!-- KHU VỰC KÊU NƯỚC TẠI BÀN -->
+                <div class="bg-gradient-to-b from-amber-500/10 to-zinc-900/90 border border-amber-500/30 rounded-2xl p-3.5 space-y-2.5">
+                    <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                        <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                            <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-amber-400"></i>
+                            <span>KÊU NƯỚC TẠI BÀN</span>
+                        </span>
+                        
+                        <!-- Số lượng -->
+                        <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-2 py-1">
+                            <button type="button" onclick="changeOrderQty(-1)" class="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center font-bold text-sm active:scale-90 transition">-</button>
+                            <span id="orderItemQty" class="font-mono font-bold text-amber-300 text-sm min-w-[20px] text-center">1</span>
+                            <button type="button" onclick="changeOrderQty(1)" class="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-sm active:scale-90 transition">+</button>
+                        </div>
+                    </div>
+
+                    <!-- Ghi chú cho món này -->
+                    <div>
+                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho món:</label>
+                        <input type="text" id="orderItemNote" placeholder="Vd: Ít ngọt, nhiều đá, để đá riêng..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+
+                    <!-- Số bàn & Tên khách -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Số bàn / Vị trí <span class="text-rose-400">*</span></label>
+                            <input type="text" id="orderTableInput" placeholder="Vd: Sảnh 1, Bàn 3" class="w-full bg-black/50 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Tên của bạn</label>
+                            <input type="text" id="orderCustomerName" placeholder="Tên khách" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                        </div>
+                    </div>
+
+                    <!-- SĐT & Lời nhắn chung cho quán -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Số ĐT (tùy chọn)</label>
+                            <input type="tel" id="orderCustomerPhone" placeholder="09xxxxxxxx" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho quán</label>
+                            <input type="text" id="orderGeneralNote" placeholder="Vd: Mang lên trước..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                        </div>
+                    </div>
+
+                    <!-- Nút thao tác -->
+                    <div class="pt-1.5 flex items-center gap-2">
+                        <button type="button" onclick="addToOrderCart()" title="Thêm món này vào danh sách để gọi nhiều món cùng lúc" class="flex-1 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-amber-300 border border-amber-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                            <span>Thêm vào đơn</span>
+                        </button>
+                        <button type="button" id="btnSingleOrderSubmit" onclick="submitSingleOrder()" class="flex-[1.4] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 active:scale-95 text-zinc-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition">
+                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                            <span>Gọi ngay món này</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="pt-0.5">
+                    <button type="button" onclick="closeHotItemModal()" class="w-full bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-400 py-2 rounded-xl text-xs font-semibold transition">
                         Đóng
                     </button>
-                    <button type="button" onclick="stepHotModal(1)" class="flex-1 bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-300 border border-white/10 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center transition">
-                        <span>Món tiếp</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Drink Order Cart Bar (Hiển thị khi khách thêm món vào đơn) -->
+    <div id="drinkCartBar" class="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 transition-all duration-300 opacity-0 translate-y-6 pointer-events-none w-auto max-w-[92vw]">
+        <div onclick="openDrinkCartModal()" class="cursor-pointer bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 text-zinc-950 px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2.5 active:scale-95 transition border border-amber-300 pointer-events-auto">
+            <i data-lucide="shopping-bag" class="w-4 h-4 text-zinc-950"></i>
+            <span class="text-xs font-black">
+                <span id="drinkCartCount">0</span> món đang chọn
+            </span>
+            <span class="text-zinc-800 text-xs">•</span>
+            <span class="text-xs font-black uppercase tracking-wider bg-zinc-950 text-amber-300 px-2.5 py-0.5 rounded-full">
+                Xem & Gửi bếp
+            </span>
+        </div>
+    </div>
+
+    <!-- DRINK CART MODAL -->
+    <div id="drinkCartModal" onclick="if(event.target===this) closeDrinkCartModal()" class="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md popup-backdrop hidden">
+        <div class="popup-panel app-card rounded-3xl max-w-sm w-full max-h-[90vh] flex flex-col overflow-hidden border border-amber-500/30 shadow-2xl relative">
+            <div class="p-4 border-b border-white/10 flex items-center justify-between bg-zinc-950/80 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="shopping-bag" class="w-4 h-4 text-amber-400"></i>
+                    <h3 class="text-sm font-extrabold text-white">Đơn gọi nước tại bàn</h3>
+                </div>
+                <button type="button" onclick="closeDrinkCartModal()" class="w-7 h-7 rounded-full bg-zinc-900 text-zinc-400 hover:text-white flex items-center justify-center">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <!-- List of items in cart -->
+            <div id="drinkCartItemsList" class="p-4 overflow-y-auto flex-1 space-y-2.5">
+            </div>
+
+            <!-- Table & Info footer -->
+            <div class="p-4 border-t border-white/10 bg-zinc-950/90 flex-shrink-0 space-y-2.5">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Số bàn / Vị trí <span class="text-rose-400">*</span></label>
+                        <input type="text" id="cartTableInput" placeholder="Vd: Sảnh 1, Bàn 3" class="w-full bg-zinc-900 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Tên của bạn</label>
+                        <input type="text" id="cartCustomerName" placeholder="Tên khách" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">SĐT (tùy chọn)</label>
+                        <input type="tel" id="cartCustomerPhone" placeholder="09xxxxxxxx" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho quán</label>
+                        <input type="text" id="cartGeneralNote" placeholder="Lời nhắn chung..." class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                    </div>
+                </div>
+
+                <div class="pt-1 flex items-center gap-2">
+                    <button type="button" onclick="clearDrinkCart()" class="px-3 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-rose-400 rounded-xl text-xs font-bold transition">
+                        Xóa hết
+                    </button>
+                    <button type="button" id="btnSubmitCartOrder" onclick="submitCartOrder()" class="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition">
+                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
+                        <span>GỬI ĐƠN VÀO BẾP</span>
                     </button>
                 </div>
             </div>
@@ -1020,8 +1141,314 @@
         let hotModalCloseTimer = null;
         let cafeMenuCloseTimer = null;
 
+        // Drink Ordering State & Logic
+        let currentDetailItem = null;
+        let orderDrinkQty = 1;
+        let drinkCart = [];
+
+        // Read table param from URL if available (?table=... or ?ban=...)
+        (function initTableParamFromUrl() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const t = urlParams.get('table') || urlParams.get('ban');
+                if (t && t.trim()) {
+                    localStorage.setItem('xuancf_table', t.trim());
+                }
+            } catch (e) {}
+        })();
+
+        function changeOrderQty(delta) {
+            orderDrinkQty = Math.max(1, Math.min(99, orderDrinkQty + delta));
+            const el = document.getElementById('orderItemQty');
+            if (el) el.textContent = orderDrinkQty;
+        }
+
+        function updateOrderFormPrefill() {
+            const savedTable = localStorage.getItem('xuancf_table') || '';
+            const savedPhone = localStorage.getItem('xuancf_customer_phone') || '';
+            const savedName = localStorage.getItem('xuancf_user_name') || userName || '';
+
+            const tableInput = document.getElementById('orderTableInput');
+            if (tableInput && !tableInput.value) tableInput.value = savedTable;
+
+            const nameInput = document.getElementById('orderCustomerName');
+            if (nameInput && !nameInput.value) nameInput.value = savedName;
+
+            const phoneInput = document.getElementById('orderCustomerPhone');
+            if (phoneInput && !phoneInput.value) phoneInput.value = savedPhone;
+        }
+
+        function addToOrderCart() {
+            if (!currentDetailItem) return;
+            const itemNote = (document.getElementById('orderItemNote')?.value || '').trim();
+            const qty = orderDrinkQty || 1;
+
+            const existing = drinkCart.find(x => x.name === currentDetailItem.name && x.note === itemNote);
+            if (existing) {
+                existing.quantity += qty;
+            } else {
+                const itemObj = {
+                    name: currentDetailItem.name,
+                    quantity: qty,
+                    note: itemNote
+                };
+                if (currentDetailItem.id) {
+                    itemObj.product_id = Number(currentDetailItem.id);
+                }
+                drinkCart.push(itemObj);
+            }
+
+            const tableVal = (document.getElementById('orderTableInput')?.value || '').trim();
+            if (tableVal) localStorage.setItem('xuancf_table', tableVal);
+            const phoneVal = (document.getElementById('orderCustomerPhone')?.value || '').trim();
+            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
+            const nameVal = (document.getElementById('orderCustomerName')?.value || '').trim();
+            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
+
+            showToast(`Đã thêm ${qty}x ${currentDetailItem.name} vào đơn!`);
+            updateDrinkCartUI();
+            closeHotItemModal();
+        }
+
+        function updateDrinkCartUI() {
+            const bar = document.getElementById('drinkCartBar');
+            const countEl = document.getElementById('drinkCartCount');
+            const totalItems = drinkCart.reduce((sum, it) => sum + (it.quantity || 1), 0);
+
+            if (countEl) countEl.textContent = totalItems;
+
+            if (totalItems > 0) {
+                if (bar) {
+                    bar.classList.remove('opacity-0', 'translate-y-6', 'pointer-events-none');
+                    bar.classList.add('opacity-100', 'translate-y-0');
+                }
+            } else {
+                if (bar) {
+                    bar.classList.add('opacity-0', 'translate-y-6', 'pointer-events-none');
+                    bar.classList.remove('opacity-100', 'translate-y-0');
+                }
+            }
+        }
+
+        function openDrinkCartModal() {
+            if (drinkCart.length === 0) {
+                showToast('Chưa có món nào trong đơn gọi nước!');
+                return;
+            }
+            const modal = document.getElementById('drinkCartModal');
+            const listEl = document.getElementById('drinkCartItemsList');
+            if (!modal || !listEl) return;
+
+            listEl.innerHTML = drinkCart.map((it, idx) => `
+                <div class="bg-zinc-900/90 border border-white/10 rounded-2xl p-3 flex items-center justify-between gap-3">
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-bold text-white truncate">${escapeHtml(it.name)}</p>
+                        ${it.note ? `<p class="text-[11px] text-amber-300 truncate mt-0.5">"${escapeHtml(it.note)}"</p>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <button type="button" onclick="modifyCartItemQty(${idx}, -1)" class="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center font-bold text-xs">-</button>
+                        <span class="font-mono font-bold text-amber-300 text-xs min-w-[18px] text-center">${it.quantity}</span>
+                        <button type="button" onclick="modifyCartItemQty(${idx}, 1)" class="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-xs">+</button>
+                        <button type="button" onclick="removeCartItem(${idx})" class="w-6 h-6 rounded-lg bg-rose-500/20 hover:bg-rose-500/40 text-rose-300 ml-1 flex items-center justify-center text-xs">
+                            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            const savedTable = localStorage.getItem('xuancf_table') || '';
+            const savedPhone = localStorage.getItem('xuancf_customer_phone') || '';
+            const savedName = localStorage.getItem('xuancf_user_name') || userName || '';
+
+            const tableInput = document.getElementById('cartTableInput');
+            if (tableInput && !tableInput.value) tableInput.value = savedTable;
+            const nameInput = document.getElementById('cartCustomerName');
+            if (nameInput && !nameInput.value) nameInput.value = savedName;
+            const phoneInput = document.getElementById('cartCustomerPhone');
+            if (phoneInput && !phoneInput.value) phoneInput.value = savedPhone;
+
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => modal.classList.add('popup-open'));
+            lucide.createIcons();
+        }
+
+        function closeDrinkCartModal() {
+            const modal = document.getElementById('drinkCartModal');
+            if (!modal) return;
+            modal.classList.remove('popup-open');
+            setTimeout(() => modal.classList.add('hidden'), 230);
+        }
+
+        function modifyCartItemQty(idx, delta) {
+            if (!drinkCart[idx]) return;
+            drinkCart[idx].quantity += delta;
+            if (drinkCart[idx].quantity <= 0) {
+                drinkCart.splice(idx, 1);
+            }
+            updateDrinkCartUI();
+            if (drinkCart.length === 0) {
+                closeDrinkCartModal();
+            } else {
+                openDrinkCartModal();
+            }
+        }
+
+        function removeCartItem(idx) {
+            drinkCart.splice(idx, 1);
+            updateDrinkCartUI();
+            if (drinkCart.length === 0) {
+                closeDrinkCartModal();
+            } else {
+                openDrinkCartModal();
+            }
+        }
+
+        function clearDrinkCart() {
+            drinkCart = [];
+            updateDrinkCartUI();
+            closeDrinkCartModal();
+            showToast('Đã xóa danh sách món!');
+        }
+
+        async function sendOrderApi(payload, submitBtn) {
+            const originalBtnHTML = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin inline-block"></i> <span>Đang gửi...</span>`;
+                lucide.createIcons();
+            }
+
+            try {
+                const res = await fetch('/api/keu-nuoc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resData = await res.json();
+
+                if (res.ok && resData.success) {
+                    showToast('✅ Đã gửi yêu cầu kêu nước đến bếp thành công!');
+                    return true;
+                } else {
+                    const err = resData.error || resData.message || 'Lỗi khi gửi yêu cầu gọi nước!';
+                    alert(err);
+                    return false;
+                }
+            } catch (err) {
+                console.error('Lỗi kết nối gọi nước:', err);
+                alert('⚠️ Không thể kết nối đến máy chủ gọi nước! Vui lòng báo nhân viên quán.');
+                return false;
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnHTML;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        async function submitSingleOrder() {
+            if (!currentDetailItem) return;
+
+            const tableInput = document.getElementById('orderTableInput');
+            const tableVal = (tableInput?.value || '').trim();
+            if (!tableVal) {
+                if (tableInput) {
+                    tableInput.focus();
+                    tableInput.classList.add('ring-2', 'ring-rose-500');
+                    setTimeout(() => tableInput.classList.remove('ring-2', 'ring-rose-500'), 2000);
+                }
+                showToast('Vui lòng nhập số bàn hoặc vị trí (vd: Sảnh 1, Bàn 3)!');
+                return;
+            }
+
+            const nameVal = (document.getElementById('orderCustomerName')?.value || '').trim() || (userName || 'Khách tại quán');
+            const phoneVal = (document.getElementById('orderCustomerPhone')?.value || '').trim();
+            const generalNoteVal = (document.getElementById('orderGeneralNote')?.value || '').trim();
+            const itemNoteVal = (document.getElementById('orderItemNote')?.value || '').trim();
+            const qty = orderDrinkQty || 1;
+
+            localStorage.setItem('xuancf_table', tableVal);
+            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
+            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
+
+            const itemObj = {
+                name: currentDetailItem.name,
+                quantity: qty,
+                note: itemNoteVal
+            };
+            if (currentDetailItem.id) {
+                itemObj.product_id = Number(currentDetailItem.id);
+            }
+
+            const payload = {
+                table: tableVal,
+                customer_name: nameVal,
+                customer_phone: phoneVal,
+                note: generalNoteVal,
+                items: [itemObj]
+            };
+
+            const btn = document.getElementById('btnSingleOrderSubmit');
+            const success = await sendOrderApi(payload, btn);
+            if (success) {
+                closeHotItemModal();
+            }
+        }
+
+        async function submitCartOrder() {
+            if (drinkCart.length === 0) {
+                showToast('Đơn gọi nước đang trống!');
+                return;
+            }
+
+            const tableInput = document.getElementById('cartTableInput');
+            const tableVal = (tableInput?.value || '').trim();
+            if (!tableVal) {
+                if (tableInput) {
+                    tableInput.focus();
+                    tableInput.classList.add('ring-2', 'ring-rose-500');
+                    setTimeout(() => tableInput.classList.remove('ring-2', 'ring-rose-500'), 2000);
+                }
+                showToast('Vui lòng nhập số bàn hoặc vị trí (vd: Sảnh 1, Bàn 3)!');
+                return;
+            }
+
+            const nameVal = (document.getElementById('cartCustomerName')?.value || '').trim() || (userName || 'Khách tại quán');
+            const phoneVal = (document.getElementById('cartCustomerPhone')?.value || '').trim();
+            const generalNoteVal = (document.getElementById('cartGeneralNote')?.value || '').trim();
+
+            localStorage.setItem('xuancf_table', tableVal);
+            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
+            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
+
+            const payload = {
+                table: tableVal,
+                customer_name: nameVal,
+                customer_phone: phoneVal,
+                note: generalNoteVal,
+                items: drinkCart
+            };
+
+            const btn = document.getElementById('btnSubmitCartOrder');
+            const success = await sendOrderApi(payload, btn);
+            if (success) {
+                drinkCart = [];
+                updateDrinkCartUI();
+                closeDrinkCartModal();
+            }
+        }
+
         function renderHotModalContent(item, isGachaPick = false) {
             if (!item) return;
+            currentDetailItem = item;
+            orderDrinkQty = 1;
+            const qtyEl = document.getElementById('orderItemQty');
+            if (qtyEl) qtyEl.textContent = '1';
+            const noteEl = document.getElementById('orderItemNote');
+            if (noteEl) noteEl.value = '';
+            updateOrderFormPrefill();
+
             const gachaBanner = document.getElementById('hotModalGachaBanner');
             if (gachaBanner) {
                 if (isGachaPick) gachaBanner.classList.remove('hidden');
@@ -1076,13 +1503,6 @@
 
         function openCurrentHotItemModal() {
             openHotItemModal(hotCurrent, false);
-        }
-
-        function stepHotModal(delta) {
-            const list = allMenuItems.length ? allMenuItems : hotItems;
-            if (!list.length) return;
-            activeHotModalIdx = (activeHotModalIdx + delta + list.length) % list.length;
-            renderHotModalContent(list[activeHotModalIdx], false);
         }
 
         function closeHotItemModal() {

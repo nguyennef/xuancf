@@ -1392,6 +1392,74 @@ def api_admin_delete_hot_item():
         return jsonify({'success': True, 'message': message, 'items': items, 'categories': categories})
     return jsonify({'success': False, 'message': message}), 400
 
+
+@app.route('/api/keu-nuoc', methods=['POST'])
+def api_keu_nuoc():
+    """API nhan don keu nuoc tu khach va chuyen tiep toi may chu Bep (cong 1234)"""
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        table = (data.get('table') or '').strip()
+        if not table:
+            return jsonify({"success": False, "error": "Vui lòng nhập số bàn hoặc vị trí!"}), 400
+
+        items = data.get('items') or []
+        if not items or not isinstance(items, list):
+            return jsonify({"success": False, "error": "Danh sách món không được để trống!"}), 400
+
+        # Lay dia chi may chu Bep (Mac dinh: http://<IP-may-chu>:1234/api/keu-nuoc)
+        kitchen_ip = os.environ.get("KITCHEN_API_HOST")
+        if not kitchen_ip:
+            host_header = (request.host or '').split(':')[0]
+            kitchen_ip = host_header if host_header and host_header not in ('0.0.0.0', 'localhost') else '127.0.0.1'
+
+        kitchen_port = int(os.environ.get("KITCHEN_API_PORT", 1234))
+        kitchen_url = f"http://{kitchen_ip}:{kitchen_port}/api/keu-nuoc"
+
+        # Phat thong bao realtime den trang Admin neu dang mo
+        socketio.emit('new_drink_order', {
+            'table': table,
+            'customer_name': data.get('customer_name') or 'Khách tại quán',
+            'customer_phone': data.get('customer_phone') or '',
+            'note': data.get('note') or '',
+            'items': items,
+            'created_at': time.strftime('%H:%M:%S')
+        })
+
+        # Chuyen tiep request toi may chu Bep
+        urls_to_try = [kitchen_url]
+        if kitchen_ip != '127.0.0.1':
+            urls_to_try.append(f"http://127.0.0.1:{kitchen_port}/api/keu-nuoc")
+
+        last_error = None
+        for target in urls_to_try:
+            try:
+                resp = requests.post(target, json=data, headers={"Content-Type": "application/json"}, timeout=5)
+                try:
+                    res_body = resp.json()
+                except Exception:
+                    res_body = {"raw": resp.text}
+
+                return jsonify({
+                    "success": resp.status_code in (200, 201),
+                    "status_code": resp.status_code,
+                    "data": res_body,
+                    "message": "Đã gửi yêu cầu kêu nước đến bếp thành công!" if resp.status_code in (200, 201) else "Bếp phản hồi có lỗi!"
+                }), resp.status_code
+            except requests.exceptions.ConnectionError:
+                last_error = f"Không thể kết nối tới {target}"
+                continue
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        return jsonify({
+            "success": False,
+            "error": f"Chưa kết nối được với máy chủ Bếp (cổng {kitchen_port}): {last_error}. Vui lòng kiểm tra app bếp đã bật chưa!"
+        }), 502
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @app.route('/api/upload/mp3', methods=['POST'])
 def api_upload_mp3():
     if not check_is_admin():
