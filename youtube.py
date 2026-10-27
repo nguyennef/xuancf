@@ -17,9 +17,10 @@ class _YtNullLogger:
 COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.txt')
 
 def _apply_cookie_opts(opts):
-    """Tu dong gan cookiefile neu cookies.txt ton tai trong thu muc de vuot chan bot YouTube"""
+    """Tu dong gan cookiefile va Node.js runtime de giai JS challenge va vuot chan bot YouTube 100%"""
     if os.path.exists(COOKIE_FILE) and os.path.getsize(COOKIE_FILE) > 0:
         opts['cookiefile'] = COOKIE_FILE
+    opts['js_runtimes'] = {'node': {}}
     return opts
 
 def format_duration(seconds):
@@ -302,7 +303,7 @@ def _get_shared_ydl():
     last_mtime = getattr(_ydl_thread_local, 'cookie_mtime', -1)
     if ydl is None or cookie_mtime != last_mtime:
         ydl_opts = {
-            'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/140/251/best',
+            'format': 'bestaudio/96/140/251/best',
             'quiet': True,
             'no_warnings': True,
             'logger': _YtNullLogger(),
@@ -354,7 +355,7 @@ def get_direct_audio_url(youtube_id, force_fresh=False):
         # Fallback to standard extraction if android/web client returned no direct audio format
         if not (info and info.get('url')):
             fallback_opts = {
-                'format': 'bestaudio[ext=m4a]/bestaudio/best',
+                'format': 'bestaudio/96/140/best',
                 'quiet': True,
                 'no_warnings': True,
                 'logger': _YtNullLogger(),
