@@ -625,61 +625,33 @@
                     <p id="hotModalDesc" class="text-xs text-zinc-200 leading-relaxed whitespace-pre-line"></p>
                 </div>
 
-                <!-- KHU VỰC KÊU NƯỚC TẠI BÀN -->
-                <div class="bg-gradient-to-b from-amber-500/10 to-zinc-900/90 border border-amber-500/30 rounded-2xl p-3.5 space-y-2.5">
-                    <div class="flex items-center justify-between pb-1.5 border-b border-white/5">
+                <!-- KHU VỰC KÊU NƯỚC TẠI BÀN (TỐI GIẢN) -->
+                <div class="bg-gradient-to-b from-amber-500/10 to-zinc-900/90 border border-amber-500/30 rounded-2xl p-3.5 space-y-3">
+                    <div class="flex items-center justify-between">
                         <span class="text-xs font-black text-amber-300 flex items-center gap-1.5">
                             <i data-lucide="bell-ring" class="w-3.5 h-3.5 text-amber-400"></i>
                             <span>KÊU NƯỚC TẠI BÀN</span>
                         </span>
                         
                         <!-- Số lượng -->
-                        <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-2 py-1">
+                        <div class="flex items-center gap-2 bg-black/60 border border-white/10 rounded-xl px-2.5 py-1">
                             <button type="button" onclick="changeOrderQty(-1)" class="w-6 h-6 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white flex items-center justify-center font-bold text-sm active:scale-90 transition">-</button>
                             <span id="orderItemQty" class="font-mono font-bold text-amber-300 text-sm min-w-[20px] text-center">1</span>
                             <button type="button" onclick="changeOrderQty(1)" class="w-6 h-6 rounded-lg bg-amber-500 hover:bg-amber-400 text-zinc-950 flex items-center justify-center font-bold text-sm active:scale-90 transition">+</button>
                         </div>
                     </div>
 
-                    <!-- Ghi chú cho món này -->
+                    <!-- 1 Ghi chú duy nhất -->
                     <div>
-                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho món:</label>
-                        <input type="text" id="orderItemNote" placeholder="Vd: Ít ngọt, nhiều đá, để đá riêng..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
+                        <label class="text-[11px] text-zinc-300 font-semibold block mb-1">Ghi chú cho món:</label>
+                        <input type="text" id="orderItemNote" placeholder="Vd: Ít ngọt, nhiều đá, để đá riêng..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
                     </div>
 
-                    <!-- Số bàn & Tên khách -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Số bàn / Vị trí <span class="text-rose-400">*</span></label>
-                            <input type="text" id="orderTableInput" placeholder="Vd: Sảnh 1, Bàn 3" class="w-full bg-black/50 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Tên của bạn</label>
-                            <input type="text" id="orderCustomerName" placeholder="Tên khách" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                        </div>
-                    </div>
-
-                    <!-- SĐT & Lời nhắn chung cho quán -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Số ĐT (tùy chọn)</label>
-                            <input type="tel" id="orderCustomerPhone" placeholder="09xxxxxxxx" class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                        </div>
-                        <div>
-                            <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho quán</label>
-                            <input type="text" id="orderGeneralNote" placeholder="Vd: Mang lên trước..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                        </div>
-                    </div>
-
-                    <!-- Nút thao tác -->
-                    <div class="pt-1.5 flex items-center gap-2">
-                        <button type="button" onclick="addToOrderCart()" title="Thêm món này vào danh sách để gọi nhiều món cùng lúc" class="flex-1 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-amber-300 border border-amber-500/30 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition">
-                            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-                            <span>Thêm vào đơn</span>
-                        </button>
-                        <button type="button" id="btnSingleOrderSubmit" onclick="submitSingleOrder()" class="flex-[1.4] bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 active:scale-95 text-zinc-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 transition">
-                            <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                            <span>Gọi ngay món này</span>
+                    <!-- 1 Nút thao tác duy nhất -->
+                    <div>
+                        <button type="button" id="btnSingleOrderSubmit" onclick="submitSingleOrder()" class="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>KÊU NƯỚC NGAY</span>
                         </button>
                     </div>
                 </div>
@@ -1350,27 +1322,10 @@
         async function submitSingleOrder() {
             if (!currentDetailItem) return;
 
-            const tableInput = document.getElementById('orderTableInput');
-            const tableVal = (tableInput?.value || '').trim();
-            if (!tableVal) {
-                if (tableInput) {
-                    tableInput.focus();
-                    tableInput.classList.add('ring-2', 'ring-rose-500');
-                    setTimeout(() => tableInput.classList.remove('ring-2', 'ring-rose-500'), 2000);
-                }
-                showToast('Vui lòng nhập số bàn hoặc vị trí (vd: Sảnh 1, Bàn 3)!');
-                return;
-            }
-
-            const nameVal = (document.getElementById('orderCustomerName')?.value || '').trim() || (userName || 'Khách tại quán');
-            const phoneVal = (document.getElementById('orderCustomerPhone')?.value || '').trim();
-            const generalNoteVal = (document.getElementById('orderGeneralNote')?.value || '').trim();
+            const savedTable = localStorage.getItem('xuancf_table') || 'Tại bàn';
+            const nameVal = localStorage.getItem('xuancf_user_name') || userName || 'Khách tại quán';
             const itemNoteVal = (document.getElementById('orderItemNote')?.value || '').trim();
             const qty = orderDrinkQty || 1;
-
-            localStorage.setItem('xuancf_table', tableVal);
-            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
-            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
 
             const itemObj = {
                 name: currentDetailItem.name,
@@ -1382,10 +1337,10 @@
             }
 
             const payload = {
-                table: tableVal,
+                table: savedTable,
                 customer_name: nameVal,
-                customer_phone: phoneVal,
-                note: generalNoteVal,
+                customer_phone: '',
+                note: itemNoteVal,
                 items: [itemObj]
             };
 
