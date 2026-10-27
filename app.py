@@ -1778,10 +1778,10 @@ def handle_generic_exception(e):
 if __name__ == '__main__':
     local_ip = get_local_ip()
     print("=" * 60)
-    print("  KARAOKE & MUSIC QUEUE SYSTEM (XUANCF)")
+    print("  XUÂN CÀ PHÊ - SERVER PHÁT NHẠC & GỌI MÓN")
     print(f"  * Khách hàng quét mã:   http://{local_ip}:5000/")
-    print(f"  * Màn hình Loa/Speaker:  http://{local_ip}:5000/speaker (Mật khẩu: {SPEAKER_PASSWORD})")
-    print(f"  * Trang Quản Trị Admin:  http://{local_ip}:5000/admin (Mật khẩu: {ADMIN_PIN})")
+    print(f"  * Màn hình Loa/Speaker:  http://{local_ip}:5000/speaker")
+    print(f"  * Trang Quản Trị Admin:  http://{local_ip}:5000/admin")
     print("=" * 60)
     socketio.run(app, host='0.0.0.0', port=5000, debug=False, use_reloader=False, allow_unsafe_werkzeug=True)
 
