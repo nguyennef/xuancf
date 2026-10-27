@@ -99,12 +99,17 @@
             transform: scale(1.2);
         }
     </style>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body class="min-h-screen flex flex-col justify-between p-4 lg:p-6 select-none" onclick="unlockAudioOnce(event)">
 
     <!-- Dual-Deck Audio Engine for Instant Zero-Delay Preloading & Crossfading -->
     <audio id="audioA" preload="auto" class="hidden"></audio>
     <audio id="audioB" preload="auto" class="hidden"></audio>
+    <!-- Hidden YouTube Iframe Player for 100% Bot-Free & Cookie-Free Playback on Tablets/Screens -->
+    <div id="ytPlayerContainer" style="position: fixed; top: -9999px; left: -9999px; width: 320px; height: 240px; pointer-events: none; z-index: -999;">
+        <div id="ytPlayer"></div>
+    </div>
 
     <!-- Top Bar: Studio Console Header -->
     <header class="flex items-center justify-between mb-4">
@@ -368,6 +373,99 @@
 
     <!-- Pure Audio Engine Script with Dual-Deck Zero-Delay Preloading & Crossfading -->
     <script>
+        
+        // ============================================================
+        // YOUTUBE OFFICIAL IFRAME ENGINE (100% BOT-FREE & COOKIE-FREE)
+        // ============================================================
+        let ytPlayer = null;
+        let isYtReady = false;
+        let isCurrentTrackYouTube = false;
+        let ytProgressTimer = null;
+
+        window.onYouTubeIframeAPIReady = function() {
+            try {
+                ytPlayer = new YT.Player('ytPlayer', {
+                    height: '240',
+                    width: '320',
+                    playerVars: {
+                        'autoplay': 1,
+                        'controls': 0,
+                        'rel': 0,
+                        'playsinline': 1,
+                        'enablejsapi': 1,
+                        'origin': window.location.origin
+                    },
+                    events: {
+                        'onReady': () => {
+                            isYtReady = true;
+                            console.log('[YouTube Iframe Engine] Sẵn sàng phát nhạc trên Tablet!');
+                        },
+                        'onStateChange': onYtPlayerStateChange,
+                        'onError': onYtPlayerError
+                    }
+                });
+            } catch (e) {
+                console.warn('[YouTube Iframe] Init error:', e);
+            }
+        };
+
+        function onYtPlayerStateChange(event) {
+            if (!isCurrentTrackYouTube) return;
+            if (event.data === YT.PlayerState.PLAYING) {
+                setPlaybackUIState(true);
+                startXProgress();
+            } else if (event.data === YT.PlayerState.PAUSED) {
+                setPlaybackUIState(false);
+                stopXProgress();
+            } else if (event.data === YT.PlayerState.ENDED) {
+                console.log('[YouTube Iframe] Track ended naturally');
+                stopXProgress();
+                advanceToNextSong(false, 'yt.onended');
+            }
+        }
+
+        function onYtPlayerError(event) {
+            console.warn('[YouTube Iframe] Error code:', event.data);
+            if (isCurrentTrackYouTube) {
+                const badge = document.getElementById('transitionBadge');
+                if (badge) {
+                    badge.innerHTML = `<i data-lucide="alert-circle" class="w-3 h-3 text-rose-400"></i><span>Video hạn chế, đang chuyển bài tiếp...</span>`;
+                    badge.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+                setTimeout(() => advanceToNextSong(true, 'yt.error'), 1800);
+            }
+        }
+
+        function startXProgress() {
+            stopXProgress();
+            ytProgressTimer = setInterval(() => {
+                if (!isCurrentTrackYouTube || !ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return;
+                try {
+                    const ct = ytPlayer.getCurrentTime() || 0;
+                    const dur = ytPlayer.getDuration() || 0;
+                    if (dur > 0) {
+                        const pct = Math.min(100, (ct / dur) * 100);
+                        const pb = document.getElementById('songProgressBar');
+                        if (pb) pb.style.width = pct + '%';
+                        const currEl = document.getElementById('currentTimeDisplay');
+                        const durEl = document.getElementById('durationDisplay');
+                        if (currEl) currEl.textContent = formatTime(ct);
+                        if (durEl && (!durEl.textContent || durEl.textContent === '--:--' || durEl.textContent === 'YouTube')) {
+                            durEl.textContent = formatTime(dur);
+                        }
+                    }
+                } catch(e) {}
+            }, 450);
+        }
+
+        function stopXProgress() {
+            if (ytProgressTimer) {
+                clearInterval(ytProgressTimer);
+                ytProgressTimer = null;
+            }
+        }
+
         const audioA = document.getElementById('audioA');
         const audioB = document.getElementById('audioB');
         audioA._loadedYid = null;
@@ -865,6 +963,57 @@
         }
 
         async function executeTransitionToSong(targetSong, isForce = false, reason = 'auto', queueData = null) {
+
+
+            const yid = targetSong.youtube_id;
+            const isLocal = yid.startsWith('/static/') || yid.includes('.mp3') || yid.includes('.m4a') || yid.includes('.wav');
+
+            // === PHÁT QUA YOUTUBE IFRAME (CHO MỌI BÀI YOUTUBE TRÊN TABLET) ===
+            if (!isLocal) {
+                isCurrentTrackYouTube = true;
+                stopXProgress();
+                hardStopDeck(audioA);
+                hardStopDeck(audioB);
+
+                currentSong = targetSong;
+                updateNowPlayingUI(targetSong);
+                isOutroFading = false;
+                isAudioUnlocked = true;
+
+                const badge = document.getElementById('transitionBadge');
+                if (badge) badge.classList.add('hidden');
+
+                const playYt = () => {
+                    if (ytPlayer && isYtReady && typeof ytPlayer.loadVideoById === 'function') {
+                        try {
+                            ytPlayer.setVolume(baseVolume);
+                            ytPlayer.loadVideoById(yid);
+                            ytPlayer.playVideo();
+                            setPlaybackUIState(true);
+                            startXProgress();
+                        } catch(e) {
+                            console.warn('[YouTube Iframe] play error:', e);
+                        }
+                    } else {
+                        // Wait a bit if API is still loading
+                        setTimeout(playYt, 250);
+                    }
+                };
+
+                playYt();
+                isTransitioning = false;
+                transitioningSongId = null;
+                setSkipButtonDisabled(false);
+                return;
+            }
+
+            // === PHÁT QUA THẺ AUDIO CHO FILE MP3 NỘI BỘ QUÁN ===
+            isCurrentTrackYouTube = false;
+            stopXProgress();
+            if (ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                try { ytPlayer.pauseVideo(); } catch(e) {}
+            }
+
             const seq = ++transitionSeq;
             isTransitioning = true;
             transitioningSongId = targetSong ? targetSong.id : null;
@@ -1143,6 +1292,9 @@
         const unlockEvents = ['pointerdown', 'mousedown', 'keydown', 'touchstart', 'focus', 'wheel', 'mousemove'];
         function globalAutoUnlock() {
             isAudioUnlocked = true;
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                try { ytPlayer.playVideo(); setPlaybackUIState(true); startXProgress(); } catch(e) {}
+            }
             const active = getActiveAudio();
             if (active) {
                 active.muted = false;
@@ -1173,6 +1325,10 @@
         function speakerPlay(e) {
             if (e && e.stopPropagation) e.stopPropagation();
             isAudioUnlocked = true;
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.playVideo === 'function') {
+                try { ytPlayer.playVideo(); setPlaybackUIState(true); startXProgress(); } catch(e) {}
+                return;
+            }
             const active = getActiveAudio();
             if (active) {
                 active.muted = false;
@@ -1187,6 +1343,10 @@
 
         function speakerPause(e) {
             if (e && e.stopPropagation) e.stopPropagation();
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.pauseVideo === 'function') {
+                try { ytPlayer.pauseVideo(); setPlaybackUIState(false); stopXProgress(); } catch(e) {}
+                return;
+            }
             const active = getActiveAudio();
             if (active && active.src && !active.paused) {
                 active.pause();
@@ -1213,6 +1373,9 @@
                     fadeIntervalB = null;
                 }
                 active.volume = baseVolume / 100;
+            if (ytPlayer && typeof ytPlayer.setVolume === 'function') {
+                try { ytPlayer.setVolume(baseVolume); } catch(e) {}
+            }
             }
             const volEl = document.getElementById('speakerVolText');
             if (volEl) volEl.textContent = `Âm lượng: ${baseVolume}%`;
@@ -1316,12 +1479,21 @@
         function handleSeek(e) {
             if (e && e.stopPropagation) e.stopPropagation();
             const track = document.getElementById('songProgressTrack');
-            const active = getActiveAudio();
-            if (!track || !active || !active.duration) return;
+            if (!track) return;
             const rect = track.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const pct = Math.max(0, Math.min(1, clickX / rect.width));
-            active.currentTime = pct * active.duration;
+            if (isCurrentTrackYouTube && ytPlayer && typeof ytPlayer.getDuration === 'function') {
+                try {
+                    const dur = ytPlayer.getDuration() || 0;
+                    ytPlayer.seekTo(pct * dur, true);
+                } catch(e) {}
+                return;
+            }
+            const active = getActiveAudio();
+            if (active && active.duration) {
+                active.currentTime = pct * active.duration;
+            }
         }
 
         function showIdle() {
