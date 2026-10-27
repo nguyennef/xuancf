@@ -647,19 +647,17 @@
                         <input type="text" id="orderItemNote" placeholder="Vd: Ít ngọt, nhiều đá, để đá riêng..." class="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
                     </div>
 
-                    <!-- 1 Nút thao tác duy nhất -->
-                    <div>
-                        <button type="button" id="btnSingleOrderSubmit" onclick="submitSingleOrder()" class="w-full bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition">
+                    <!-- Nút thao tác: Thêm vào danh sách & Kêu nước ngay -->
+                    <div class="flex items-center gap-2 pt-0.5">
+                        <button type="button" onclick="addToOrderCart()" class="flex-1 bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-amber-300 border border-amber-500/35 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-sm">
+                            <i data-lucide="plus" class="w-4 h-4 text-amber-400"></i>
+                            <span>Thêm vào danh sách</span>
+                        </button>
+                        <button type="button" id="btnSingleOrderSubmit" onclick="submitSingleOrder()" class="flex-1 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-zinc-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/25 transition">
                             <i data-lucide="send" class="w-4 h-4"></i>
-                            <span>KÊU NƯỚC NGAY</span>
+                            <span>Kêu nước ngay</span>
                         </button>
                     </div>
-                </div>
-
-                <div class="pt-0.5">
-                    <button type="button" onclick="closeHotItemModal()" class="w-full bg-zinc-900 hover:bg-zinc-800 active:scale-95 text-zinc-400 py-2 rounded-xl text-xs font-semibold transition">
-                        Đóng
-                    </button>
                 </div>
             </div>
         </div>
@@ -696,39 +694,15 @@
             <div id="drinkCartItemsList" class="p-4 overflow-y-auto flex-1 space-y-2.5">
             </div>
 
-            <!-- Table & Info footer -->
-            <div class="p-4 border-t border-white/10 bg-zinc-950/90 flex-shrink-0 space-y-2.5">
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Số bàn / Vị trí <span class="text-rose-400">*</span></label>
-                        <input type="text" id="cartTableInput" placeholder="Vd: Sảnh 1, Bàn 3" class="w-full bg-zinc-900 border border-amber-500/40 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                    </div>
-                    <div>
-                        <label class="text-[10px] text-zinc-300 font-semibold block mb-1">Tên của bạn</label>
-                        <input type="text" id="cartCustomerName" placeholder="Tên khách" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">SĐT (tùy chọn)</label>
-                        <input type="tel" id="cartCustomerPhone" placeholder="09xxxxxxxx" class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                    </div>
-                    <div>
-                        <label class="text-[10px] text-zinc-400 font-semibold block mb-1">Ghi chú cho quán</label>
-                        <input type="text" id="cartGeneralNote" placeholder="Lời nhắn chung..." class="w-full bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-400" />
-                    </div>
-                </div>
-
-                <div class="pt-1 flex items-center gap-2">
-                    <button type="button" onclick="clearDrinkCart()" class="px-3 py-2.5 bg-zinc-900 hover:bg-zinc-800 text-rose-400 rounded-xl text-xs font-bold transition">
-                        Xóa hết
-                    </button>
-                    <button type="button" id="btnSubmitCartOrder" onclick="submitCartOrder()" class="flex-1 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-zinc-950 font-black py-2.5 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg shadow-amber-500/20 active:scale-95 transition">
-                        <i data-lucide="send" class="w-3.5 h-3.5"></i>
-                        <span>GỬI ĐƠN VÀO BẾP</span>
-                    </button>
-                </div>
+            <!-- Action footer (Tối giản) -->
+            <div class="p-4 border-t border-white/10 bg-zinc-950/90 flex-shrink-0 flex items-center gap-2">
+                <button type="button" onclick="clearDrinkCart()" class="px-3.5 py-3 bg-zinc-900 hover:bg-zinc-800 text-rose-400 rounded-xl text-xs font-bold transition active:scale-95">
+                    Xóa hết
+                </button>
+                <button type="button" id="btnSubmitCartOrder" onclick="submitCartOrder()" class="flex-1 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 text-zinc-950 font-black py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-95 transition">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                    <span>GỬI ĐƠN VÀO BẾP</span>
+                </button>
             </div>
         </div>
     </div>
@@ -1353,35 +1327,18 @@
 
         async function submitCartOrder() {
             if (drinkCart.length === 0) {
-                showToast('Đơn gọi nước đang trống!');
+                showToast('Danh sách món đang trống!');
                 return;
             }
 
-            const tableInput = document.getElementById('cartTableInput');
-            const tableVal = (tableInput?.value || '').trim();
-            if (!tableVal) {
-                if (tableInput) {
-                    tableInput.focus();
-                    tableInput.classList.add('ring-2', 'ring-rose-500');
-                    setTimeout(() => tableInput.classList.remove('ring-2', 'ring-rose-500'), 2000);
-                }
-                showToast('Vui lòng nhập số bàn hoặc vị trí (vd: Sảnh 1, Bàn 3)!');
-                return;
-            }
-
-            const nameVal = (document.getElementById('cartCustomerName')?.value || '').trim() || (userName || 'Khách tại quán');
-            const phoneVal = (document.getElementById('cartCustomerPhone')?.value || '').trim();
-            const generalNoteVal = (document.getElementById('cartGeneralNote')?.value || '').trim();
-
-            localStorage.setItem('xuancf_table', tableVal);
-            if (phoneVal) localStorage.setItem('xuancf_customer_phone', phoneVal);
-            if (nameVal) localStorage.setItem('xuancf_user_name', nameVal);
+            const savedTable = localStorage.getItem('xuancf_table') || 'Tại bàn';
+            const nameVal = localStorage.getItem('xuancf_user_name') || userName || 'Khách tại quán';
 
             const payload = {
-                table: tableVal,
+                table: savedTable,
                 customer_name: nameVal,
-                customer_phone: phoneVal,
-                note: generalNoteVal,
+                customer_phone: '',
+                note: '',
                 items: drinkCart
             };
 
