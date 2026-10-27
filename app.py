@@ -167,16 +167,20 @@ def check_is_speaker(payload=None):
     """Secure verification of speaker privileges: checks session, HTTP header, or matching password"""
     if session.get('is_speaker') or session.get('is_admin'):
         return True
-    req_pass = request.headers.get('X-Speaker-Pass') or request.headers.get('X-Admin-PIN')
-    if req_pass and (req_pass == SPEAKER_PASSWORD or req_pass == ADMIN_PIN):
+    remote = request.remote_addr or ''
+    local_ip = get_local_ip()
+    if remote in ('127.0.0.1', '::1', local_ip):
+        return True
+    req_pass = (request.headers.get('X-Speaker-Pass') or request.headers.get('X-Admin-PIN') or '').strip()
+    if req_pass and (req_pass == SPEAKER_PASSWORD or req_pass == ADMIN_PIN or req_pass.lower() == SPEAKER_PASSWORD.lower() or req_pass.lower() == ADMIN_PIN.lower()):
         return True
     if payload and isinstance(payload, dict):
         p = str(payload.get('password') or payload.get('pin') or payload.get('speaker_pass') or '').strip()
-        if p and (p == SPEAKER_PASSWORD or p == ADMIN_PIN):
+        if p and (p == SPEAKER_PASSWORD or p == ADMIN_PIN or p.lower() == SPEAKER_PASSWORD.lower() or p.lower() == ADMIN_PIN.lower()):
             return True
     if request.form:
         f_p = str(request.form.get('password') or request.form.get('speaker_pass') or request.form.get('pin') or '').strip()
-        if f_p and (f_p == SPEAKER_PASSWORD or f_p == ADMIN_PIN):
+        if f_p and (f_p == SPEAKER_PASSWORD or f_p == ADMIN_PIN or f_p.lower() == SPEAKER_PASSWORD.lower() or f_p.lower() == ADMIN_PIN.lower()):
             return True
     return False
 
@@ -232,8 +236,15 @@ def index():
 @app.route('/speaker')
 def speaker():
     local_ip = get_local_ip()
-    # Note: Do not auto-set session['is_speaker']. Protected by password MrHT@123.
-    return render_template('speaker.html', local_ip=local_ip)
+    remote = request.remote_addr or ''
+    # Auto-authenticate for localhost (mo_loa.bat) or if already logged into Admin
+    is_local = remote in ('127.0.0.1', '::1', local_ip)
+    if is_local or session.get('is_admin') or session.get('is_speaker'):
+        session['is_speaker'] = True
+        auto_authed = True
+    else:
+        auto_authed = False
+    return render_template('speaker.html', local_ip=local_ip, auto_authed=auto_authed)
 
 @app.route('/admin')
 def admin():
@@ -266,14 +277,22 @@ def api_admin_logout():
 @app.route('/api/speaker/verify_pass', methods=['POST'])
 def api_speaker_verify_pass():
     client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
-    allowed, wait_s = check_auth_rate_limit(client_ip)
-    if not allowed:
-        return jsonify({'success': False, 'message': f'Nhập sai quá nhiều lần! Vui lòng thử lại sau {wait_s}s.'}), 429
+    if client_ip not in ('127.0.0.1', '::1'):
+        allowed, wait_s = check_auth_rate_limit(client_ip)
+        if not allowed:
+            return jsonify({'success': False, 'message': f'Nhập sai quá nhiều lần! Vui lòng thử lại sau {wait_s}s.'}), 429
 
     data = request.get_json(silent=True) or {}
     pwd = str(data.get('password') or data.get('pin') or '').strip()
-    if pwd == SPEAKER_PASSWORD or pwd == ADMIN_PIN:
+    valid = (
+        pwd == SPEAKER_PASSWORD or 
+        pwd == ADMIN_PIN or 
+        pwd.lower() == SPEAKER_PASSWORD.lower() or 
+        pwd.lower() == ADMIN_PIN.lower()
+    )
+    if valid:
         clear_auth_failures(client_ip)
+        session.permanent = True
         session['is_speaker'] = True
         return jsonify({'success': True, 'message': 'Xác thực màn hình Loa thành công!'})
 
