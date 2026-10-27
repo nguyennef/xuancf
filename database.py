@@ -182,6 +182,29 @@ def init_db():
     conn.commit()
     conn.close()
 
+def get_bank_settings():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT key, value FROM settings WHERE key IN ('bank_name', 'bank_account', 'bank_owner')")
+    rows = dict(cursor.fetchall())
+    conn.close()
+    return {
+        "bank_name": rows.get("bank_name", "MB"),
+        "bank_account": rows.get("bank_account", "0939194508"),
+        "bank_owner": rows.get("bank_owner", "TIEM CA PHE XUAN")
+    }
+
+def set_bank_settings(bank_name, bank_account, bank_owner):
+    conn = get_connection()
+    cursor = conn.cursor()
+    for k, v in [('bank_name', (bank_name or 'MB').strip()), 
+                 ('bank_account', (bank_account or '').strip()), 
+                 ('bank_owner', (bank_owner or '').strip())]:
+        cursor.execute("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?", (k, v, v))
+    conn.commit()
+    conn.close()
+    return True
+
 def get_playback_mode():
     conn = get_connection()
     cursor = conn.cursor()
