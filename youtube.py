@@ -7,6 +7,14 @@ import time
 import os
 import threading
 
+COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.txt')
+
+def _apply_cookie_opts(opts):
+    """Tu dong gan cookiefile neu cookies.txt ton tai trong thu muc de vuot chan bot YouTube"""
+    if os.path.exists(COOKIE_FILE) and os.path.getsize(COOKIE_FILE) > 0:
+        opts['cookiefile'] = COOKIE_FILE
+    return opts
+
 def format_duration(seconds):
     if not seconds:
         return "00:00"
@@ -283,17 +291,21 @@ _ydl_thread_local = threading.local()
 def _get_shared_ydl():
     """Thread-local YoutubeDL instance with clean pure-audio extraction options for 100% thread safety"""
     ydl = getattr(_ydl_thread_local, 'ydl', None)
-    if ydl is None:
+    cookie_mtime = os.path.getmtime(COOKIE_FILE) if os.path.exists(COOKIE_FILE) else 0
+    last_mtime = getattr(_ydl_thread_local, 'cookie_mtime', -1)
+    if ydl is None or cookie_mtime != last_mtime:
         ydl_opts = {
             'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/140/251/best',
             'quiet': True,
             'no_warnings': True,
             'skip_download': True,
             'noplaylist': True,
-            'socket_timeout': 6
+            'socket_timeout': 8
         }
+        _apply_cookie_opts(ydl_opts)
         ydl = yt_dlp.YoutubeDL(ydl_opts)
         _ydl_thread_local.ydl = ydl
+        _ydl_thread_local.cookie_mtime = cookie_mtime
     return ydl
 
 def get_direct_audio_url(youtube_id, force_fresh=False):
@@ -339,8 +351,9 @@ def get_direct_audio_url(youtube_id, force_fresh=False):
                 'no_warnings': True,
                 'skip_download': True,
                 'noplaylist': True,
-                'socket_timeout': 6
+                'socket_timeout': 8
             }
+            _apply_cookie_opts(fallback_opts)
             with yt_dlp.YoutubeDL(fallback_opts) as f_ydl:
                 info = f_ydl.extract_info(f"https://www.youtube.com/watch?v={yid_str}", download=False)
 
