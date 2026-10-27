@@ -7,6 +7,13 @@ import time
 import os
 import threading
 
+
+class _YtNullLogger:
+    def debug(self, msg): pass
+    def info(self, msg): pass
+    def warning(self, msg): pass
+    def error(self, msg): pass
+
 COOKIE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'cookies.txt')
 
 def _apply_cookie_opts(opts):
@@ -298,6 +305,7 @@ def _get_shared_ydl():
             'format': 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/140/251/best',
             'quiet': True,
             'no_warnings': True,
+            'logger': _YtNullLogger(),
             'skip_download': True,
             'noplaylist': True,
             'socket_timeout': 8
@@ -349,6 +357,7 @@ def get_direct_audio_url(youtube_id, force_fresh=False):
                 'format': 'bestaudio[ext=m4a]/bestaudio/best',
                 'quiet': True,
                 'no_warnings': True,
+                'logger': _YtNullLogger(),
                 'skip_download': True,
                 'noplaylist': True,
                 'socket_timeout': 8
