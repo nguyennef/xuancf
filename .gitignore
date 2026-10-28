@@ -63,6 +63,7 @@ static/music/*
 # ==========================================
 # Tool up code nội bộ (Không đẩy lên Git)
 # ==========================================
+*.bat
 up_code.*
 update.zip
 *.zip
